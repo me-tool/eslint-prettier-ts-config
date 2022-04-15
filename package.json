@@ -1,0 +1,30 @@
+{
+  "name": "@me-tool/eslint-prettier-ts-config",
+  "description": "Base repository for eslint + prettier + ts configuration for other projects",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "halo xie",
+  "private": false,
+  "dependencies": {
+    "@me-tool/eslint-prettier-config": "^1.0.2",
+    "@typescript-eslint/eslint-plugin": "^5.17.0",
+    "@typescript-eslint/parser": "^5.17.0",
+    "eslint-import-resolver-typescript": "^2.7.0"
+  },
+  "peerDependencies": {
+    "typescript": "^4.6.3"
+  },
+  "homepage": "https://github.com/me-tool/eslint-prettier-ts-config#readme",
+  "bugs": {
+    "url": "https://github.com/me-tool/eslint-prettier-ts-config/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/me-tool/eslint-prettier-ts-config.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "license": "ISC"
+}
