@@ -203,6 +203,14 @@ npx husky install
 npx husky add .husky/pre-commit "npm run lint"
 ```
 
+> `husky install` 已经过期，可以直接使用 `husky` 来替代，且注意会自动在 `package.json` 中添加 `prepare` script，需要手动修改如下
+
+``` diff
+# 防止出现使用 npm install --producttion 的方式，导致执行 prepare 错误
+- "prepare": "husky"
++ "prepare": "if [ \"$NODE_ENV\" != \"production\" ]; then husky; fi"
+```
+
 ### lint-staged
 
 > package.json
