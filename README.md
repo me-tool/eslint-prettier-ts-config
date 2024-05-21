@@ -208,7 +208,7 @@ npx husky add .husky/pre-commit "npm run lint"
 ``` diff
 # 防止出现使用 npm install --producttion 的方式，导致执行 prepare 错误
 - "prepare": "husky"
-+ "prepare": "if [ \"$NODE_ENV\" != \"production\" ]; then husky; fi"
++ "prepare": "if [ \"$npm_config_production\" != true ]; then echo 'husky installed' && husky; else echo 'install with prod mode husky will not installed'; fi"
 ```
 
 ### lint-staged
