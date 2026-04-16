@@ -1,19 +1,33 @@
 {
   "name": "@me-tool/eslint-prettier-ts-config",
-  "description": "Base repository for eslint + prettier + ts configuration for other projects",
-  "version": "1.0.0",
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "Opinionated ESLint v9 flat config + Prettier for TypeScript — AI coding guardrails",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.mts",
+      "import": "./src/index.mjs",
+      "default": "./src/index.mjs"
+    },
+    "./prettier": {
+      "import": {
+        "types": "./src/prettier.d.mts",
+        "default": "./src/prettier.mjs"
+      },
+      "require": {
+        "types": "./src/prettier.d.cts",
+        "default": "./src/prettier.cjs"
+      }
+    }
+  },
+  "files": [
+    "src/"
+  ],
+  "engines": {
+    "node": ">=18.18.0"
+  },
   "author": "halo xie",
-  "private": false,
-  "dependencies": {
-    "@me-tool/eslint-prettier-config": "^1.0.2",
-    "@typescript-eslint/eslint-plugin": "^5.17.0",
-    "@typescript-eslint/parser": "^5.17.0",
-    "eslint-import-resolver-typescript": "^2.7.0"
-  },
-  "peerDependencies": {
-    "typescript": "^4.6.3"
-  },
+  "license": "ISC",
   "homepage": "https://github.com/me-tool/eslint-prettier-ts-config#readme",
   "bugs": {
     "url": "https://github.com/me-tool/eslint-prettier-ts-config/issues"
@@ -26,5 +40,36 @@
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
-  "license": "ISC"
+  "keywords": [
+    "eslint",
+    "eslintconfig",
+    "prettier",
+    "typescript",
+    "flat-config",
+    "ai-coding"
+  ],
+  "dependencies": {
+    "@eslint/js": "^9.0.0",
+    "typescript-eslint": "^8.0.0",
+    "eslint-plugin-unicorn": "^56.0.0",
+    "eslint-plugin-sonarjs": "^4.0.0",
+    "eslint-plugin-import-x": "^4.0.0",
+    "eslint-import-resolver-typescript": "^4.0.0",
+    "eslint-plugin-n": "^17.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.0.0"
+  },
+  "peerDependencies": {
+    "eslint": ">=9.0.0",
+    "prettier": ">=3.0.0",
+    "typescript": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "prettier": {
+      "optional": true
+    },
+    "typescript": {
+      "optional": true
+    }
+  }
 }
