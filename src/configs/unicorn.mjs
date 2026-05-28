@@ -24,12 +24,19 @@ export function unicorn() {
           },
         ],
         'unicorn/no-null': 'off',
+        'unicorn/no-array-reduce': 'off',
         'unicorn/prefer-module': 'off',
         'unicorn/no-process-exit': 'off',
         'unicorn/filename-case': [
           'error',
           { cases: { kebabCase: true, camelCase: true, pascalCase: true } },
         ],
+      },
+    },
+    {
+      files: ['**/main.ts'],
+      rules: {
+        'unicorn/prefer-top-level-await': 'off',
       },
     },
   ];

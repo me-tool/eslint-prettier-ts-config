@@ -26,6 +26,14 @@ export function typescript({ tsconfigRootDir, disableTypeChecked = false } = {})
         '@typescript-eslint/no-misused-promises': 'error',
         '@typescript-eslint/prefer-nullish-coalescing': 'error',
         '@typescript-eslint/prefer-optional-chain': 'error',
+        '@typescript-eslint/no-extraneous-class': [
+          'error',
+          { allowWithDecorator: true },
+        ],
+        '@typescript-eslint/restrict-template-expressions': [
+          'error',
+          { allowNumber: true },
+        ],
       },
     },
     // JS/CJS files: disable type-checked rules
