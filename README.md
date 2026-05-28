@@ -140,8 +140,32 @@ Key rules that catch common AI-generated code issues:
 
 - **`prevent-abbreviations`**: Allows common short names: `req`, `res`, `err`, `ctx`, `env`, `db`, `fn`, `args`, `params`, `props`, `ref`
 - **`no-null`**: Disabled — Node.js/TS ecosystem uses `null` pervasively
+- **`no-array-reduce`**: Disabled — `reduce` is idiomatic for data aggregation
 - **`prefer-module`**: Disabled — supports mixed CJS/ESM codebases
+- **`prefer-top-level-await`**: Disabled for `main.ts` — CommonJS entry files cannot use top-level await
 - **`filename-case`**: Allows kebab-case, camelCase, and PascalCase
+
+### Notable TypeScript Customizations
+
+- **`no-extraneous-class`**: Allows classes with decorators — required by NestJS (`@Module`), Angular (`@NgModule`), and similar frameworks
+- **`restrict-template-expressions`**: Allows `number` in template literals — safe and ubiquitous in practice
+
+### Notable Node.js Plugin Customizations
+
+- **`no-missing-import`**: Disabled — `eslint-plugin-import-x` with TypeScript resolver already covers this
+- **`no-process-exit`**: Disabled — `process.exit()` is valid in CLI tools and application entry points
+- **`no-unpublished-import`** / **`no-unpublished-require`**: Disabled for test, spec, and config files — devDependencies imports are expected there
+
+### Notable Import-x Customizations
+
+- **`named`**: Disabled for TypeScript files — TypeScript compiler already validates named exports
+
+### Notable SonarJS Customizations
+
+- **`cognitive-complexity`**: Set to 15 (default is 10)
+- **`no-nested-functions`**: Disabled — closures and callbacks are core JavaScript/TypeScript patterns
+- **`todo-tag`** / **`fixme-tag`**: Set to `warn` — allows TODO markers during development without blocking CI
+- **Cross-plugin dedup**: 9 rules disabled where `typescript-eslint` already provides equivalent checks: `no-array-delete`, `prefer-regexp-exec`, `deprecation`, `argument-type`, `different-types-comparison`, `no-try-promise`, `no-async-constructor`, `function-return-type`, `redundant-type-aliases`
 
 ## Environment
 
