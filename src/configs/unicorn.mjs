@@ -20,6 +20,7 @@ export function unicorn() {
               params: true,
               props: true,
               ref: true,
+              e2e: true,
             },
           },
         ],

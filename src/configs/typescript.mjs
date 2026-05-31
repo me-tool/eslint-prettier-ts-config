@@ -34,6 +34,19 @@ export function typescript({ tsconfigRootDir, disableTypeChecked = false } = {})
           'error',
           { allowNumber: true },
         ],
+        '@typescript-eslint/naming-convention': [
+          'error',
+          {
+            selector: 'interface',
+            format: ['PascalCase'],
+            custom: { regex: '^I[A-Z]', match: false },
+          },
+          {
+            selector: 'typeAlias',
+            format: ['PascalCase'],
+            custom: { regex: '^T[A-Z]', match: false },
+          },
+        ],
       },
     },
     // JS/CJS files: disable type-checked rules

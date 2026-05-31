@@ -171,7 +171,7 @@ Key rules that catch common AI-generated code issues:
 
 ### Notable Unicorn Customizations
 
-- **`prevent-abbreviations`**: Allows common short names: `req`, `res`, `err`, `ctx`, `env`, `db`, `fn`, `args`, `params`, `props`, `ref`
+- **`prevent-abbreviations`**: Allows common short names: `req`, `res`, `err`, `ctx`, `env`, `db`, `fn`, `args`, `params`, `props`, `ref`, `e2e`
 - **`no-null`**: Disabled — Node.js/TS ecosystem uses `null` pervasively
 - **`no-array-reduce`**: Disabled — `reduce` is idiomatic for data aggregation
 - **`prefer-module`**: Disabled — supports mixed CJS/ESM codebases
@@ -182,6 +182,7 @@ Key rules that catch common AI-generated code issues:
 
 - **`no-extraneous-class`**: Allows classes with decorators — required by NestJS (`@Module`), Angular (`@NgModule`), and similar frameworks
 - **`restrict-template-expressions`**: Allows `number` in template literals — safe and ubiquitous in practice
+- **`naming-convention`**: Enforces `PascalCase` for interfaces and type aliases; forbids Hungarian notation prefixes (`IUser` → `User`, `TProps` → `Props`)
 
 ### Notable Node.js Plugin Customizations
 
