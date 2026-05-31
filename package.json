@@ -9,6 +9,11 @@
       "import": "./src/index.mjs",
       "default": "./src/index.mjs"
     },
+    "./cspell": {
+      "types": "./src/configs/cspell.d.mts",
+      "import": "./src/configs/cspell.mjs",
+      "default": "./src/configs/cspell.mjs"
+    },
     "./prettier": {
       "import": {
         "types": "./src/prettier.d.mts",
@@ -62,13 +67,17 @@
   "peerDependencies": {
     "eslint": ">=9.0.0",
     "prettier": ">=3.0.0",
-    "typescript": ">=5.0.0"
+    "typescript": ">=5.0.0",
+    "@cspell/eslint-plugin": ">=10.0.0"
   },
   "peerDependenciesMeta": {
     "prettier": {
       "optional": true
     },
     "typescript": {
+      "optional": true
+    },
+    "@cspell/eslint-plugin": {
       "optional": true
     }
   }
