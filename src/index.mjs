@@ -32,6 +32,8 @@ export function defineConfig(options = {}) {
     ignores = [],
     overrides = {},
     disableTypeChecked = false,
+    abbreviations = {},
+    testFiles = [],
   } = options;
 
   /** @type {import('eslint').Linter.Config[]} */
@@ -61,13 +63,13 @@ export function defineConfig(options = {}) {
     ...importX(),
 
     // 6. Modern JS enforcement
-    ...unicorn(),
+    ...unicorn({ abbreviations }),
 
     // 7. Complexity + bug detection
     ...sonarjs(),
 
     // 8. Node.js best practices
-    ...node(),
+    ...node({ testFiles }),
 
     // 9. Prettier (MUST be last — disables formatting rules)
     ...prettier(),

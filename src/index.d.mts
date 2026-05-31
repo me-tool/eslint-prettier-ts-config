@@ -30,6 +30,25 @@ export interface DefineConfigOptions {
    * @default false
    */
   disableTypeChecked?: boolean;
+
+  /**
+   * Additional abbreviations to allow in `unicorn/prevent-abbreviations`.
+   * Merged with the built-in allowList (req, res, err, ctx, env, db, fn, args, params, props, ref, e2e).
+   *
+   * @example
+   * defineConfig({ abbreviations: { src: true, dest: true } })
+   */
+  abbreviations?: Record<string, boolean>;
+
+  /**
+   * Additional file globs where devDependency imports are allowed
+   * (disables `n/no-unpublished-import` and `n/no-unpublished-require`).
+   * Merged with the built-in patterns: `*.test.*`, `*.spec.*`, `*.config.*`.
+   *
+   * @example
+   * defineConfig({ testFiles: ['**\/__tests__/**', '**/e2e/**'] })
+   */
+  testFiles?: string[];
 }
 
 /**

@@ -80,19 +80,12 @@ import { cspell } from '@me-tool/eslint-prettier-ts-config/cspell';
 export default [...defineConfig(), ...cspell()];
 ```
 
-The CSpell config includes a built-in word list for common tech ecosystem terms (AI/DB/tooling). To add project-specific words, append a rule override:
+The CSpell config includes a built-in word list for common tech ecosystem terms (AI/DB/tooling). To add project-specific words, pass them via the `words` option:
 
 ```js
 export default [
   ...defineConfig(),
-  ...cspell(),
-  {
-    rules: {
-      '@cspell/spellchecker': ['error', {
-        cspell: { words: ['myapp', 'myterm'] },
-      }],
-    },
-  },
+  ...cspell({ words: ['myapp', 'myterm'] }),
 ];
 ```
 
@@ -109,6 +102,12 @@ export default defineConfig({
 
   // Additional ignore patterns (extends defaults, doesn't replace)
   ignores: ['**/generated/**', '**/proto/**'],
+
+  // Additional abbreviations for unicorn/prevent-abbreviations (merged with defaults)
+  abbreviations: { src: true, dest: true },
+
+  // Additional file globs where devDependency imports are allowed (merged with defaults)
+  testFiles: ['**/__tests__/**', '**/e2e/**'],
 
   // Rule overrides (applied last)
   overrides: {

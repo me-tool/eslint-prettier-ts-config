@@ -1,6 +1,21 @@
 import pluginUnicorn from 'eslint-plugin-unicorn';
 
-export function unicorn() {
+const BASE_ABBREVIATIONS = {
+  req: true,
+  res: true,
+  err: true,
+  ctx: true,
+  env: true,
+  db: true,
+  fn: true,
+  args: true,
+  params: true,
+  props: true,
+  ref: true,
+  e2e: true,
+};
+
+export function unicorn({ abbreviations = {} } = {}) {
   return [
     pluginUnicorn.configs['flat/recommended'],
     {
@@ -8,20 +23,7 @@ export function unicorn() {
         'unicorn/prevent-abbreviations': [
           'error',
           {
-            allowList: {
-              req: true,
-              res: true,
-              err: true,
-              ctx: true,
-              env: true,
-              db: true,
-              fn: true,
-              args: true,
-              params: true,
-              props: true,
-              ref: true,
-              e2e: true,
-            },
+            allowList: { ...BASE_ABBREVIATIONS, ...abbreviations },
           },
         ],
         'unicorn/no-null': 'off',
