@@ -14,6 +14,11 @@
       "import": "./src/configs/cspell.mjs",
       "default": "./src/configs/cspell.mjs"
     },
+    "./barrel": {
+      "types": "./src/configs/barrel.d.mts",
+      "import": "./src/configs/barrel.mjs",
+      "default": "./src/configs/barrel.mjs"
+    },
     "./prettier": {
       "import": {
         "types": "./src/prettier.d.mts",

@@ -91,6 +91,36 @@ export default [
 
 Alternatively, create a `cspell.json` at project root — CSpell auto-discovers it.
 
+### 6. (Optional) Barrel Import Enforcement
+
+Enforce barrel imports at layer boundaries — prevent deep path imports like `@core/modules/redis/redis.module` and force consumers to use `@core/modules`.
+
+```js
+// eslint.config.mjs
+import { defineConfig } from '@me-tool/eslint-prettier-ts-config';
+import { barrel } from '@me-tool/eslint-prettier-ts-config/barrel';
+
+export default [
+  ...defineConfig({ tsconfigRootDir: import.meta.dirname }),
+  ...barrel({
+    layers: [
+      { alias: '@core/modules' },
+      { alias: '@core/utils' },
+      { alias: '@shared', message: 'Import from @shared barrel only' },
+    ],
+    enforcedIn: ['src/features/**/*.ts', 'src/modules/**/*.ts', 'test/**/*.ts'],
+  }),
+];
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `layers[].alias` | `string` | Path alias to restrict. Blocks `${alias}/*/**` (deep imports). |
+| `layers[].message` | `string?` | Custom error message. Defaults to `Use barrel: ${alias}`. |
+| `enforcedIn` | `string[]` | Globs for files where the rule applies. Typically the consuming layers, not the layer defining the barrel. |
+
+The rule only applies to files matching `enforcedIn` — internal imports within the same layer are not restricted.
+
 ## Options
 
 ```js
