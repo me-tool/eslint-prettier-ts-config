@@ -15,6 +15,7 @@ Designed as **AI coding guardrails** — strict type checks, complexity detectio
 | `eslint-plugin-n` | Node.js best practices |
 | `eslint-config-prettier` | Disable formatting rules (let Prettier handle it) |
 | `eslint-import-resolver-typescript` | TypeScript-aware import resolution for import-x |
+| `@cspell/eslint-plugin` | Spell checking for identifiers, comments, and JSX text (optional) |
 
 ## Requirements
 
@@ -64,6 +65,38 @@ export default defineConfig();
 Done. Run `pnpm lint` to check, `pnpm lint:fix` to auto-fix.
 
 > **Note:** Your project must have a `tsconfig.json` for type-aware rules to work. If you don't have one, set `disableTypeChecked: true` in the options.
+
+### 5. (Optional) Spell Checking
+
+```bash
+pnpm add -D @cspell/eslint-plugin
+```
+
+```js
+// eslint.config.mjs
+import { defineConfig } from '@me-tool/eslint-prettier-ts-config';
+import { cspell } from '@me-tool/eslint-prettier-ts-config/cspell';
+
+export default [...defineConfig(), ...cspell()];
+```
+
+The CSpell config includes a built-in word list for common tech ecosystem terms (AI/DB/tooling). To add project-specific words, append a rule override:
+
+```js
+export default [
+  ...defineConfig(),
+  ...cspell(),
+  {
+    rules: {
+      '@cspell/spellchecker': ['error', {
+        cspell: { words: ['myapp', 'myterm'] },
+      }],
+    },
+  },
+];
+```
+
+Alternatively, create a `cspell.json` at project root — CSpell auto-discovers it.
 
 ## Options
 
