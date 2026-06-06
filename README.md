@@ -121,6 +121,50 @@ export default [
 
 The rule only applies to files matching `enforcedIn` — internal imports within the same layer are not restricted.
 
+### 7. (Optional) NestJS File Naming
+
+Enforce the NestJS file-naming convention: role-suffix whitelist, content↔suffix binding, and a single test-file convention. Self-contained — adds **no** external ESLint plugin dependency.
+
+```js
+// eslint.config.mjs
+import { defineConfig } from '@me-tool/eslint-prettier-ts-config';
+import { nestNaming } from '@me-tool/eslint-prettier-ts-config/nest-naming';
+
+export default [
+  ...defineConfig({ tsconfigRootDir: import.meta.dirname }),
+  ...nestNaming({ files: ['src/**/*.ts'] }),
+];
+```
+
+Four rules:
+
+| Rule | Catches |
+|------|---------|
+| `nest-naming/allowed-suffix` | Filename suffix not in the role whitelist (e.g. `*.widget.ts`); non-kebab base (`CreateUser.dto.ts`) |
+| `nest-naming/suffix-kind` | Content doesn't match suffix: `*.dto.ts` written as `interface`/`type`; a class inside `*.interface.ts` / `*.type.ts` |
+| `nest-naming/suffix-decorator` | A `*.controller.ts` / `*.service.ts` / `*.module.ts` / `*.guard.ts` class missing its `@Controller` / `@Injectable` / `@Module` decorator (severity = `enforceDecorator`, default `warn`) |
+| `nest-naming/test-suffix` | Wrong test convention: `*.test.ts` when Nest's default jest `testRegex` only matches `*.spec.ts` (silent skip) |
+
+Suffixes are graded by content form. `class` suffixes must export a class; `interface`/`type` must declare that construct and must not contain a class; `any` suffixes are filename-allowed but content-free — because they aren't classes:
+
+| Kind | Suffixes |
+|------|----------|
+| `class` (+ decorator) | `controller` `service` `module` `guard` `pipe` `interceptor` `filter` `resolver` `gateway` |
+| `class` (decorator varies) | `dto` `entity` `repository` `strategy` `subscriber` |
+| `interface` / `type` | `interface` `type` |
+| `any` (content-free) | `decorator` (functions) `middleware` `constant(s)` `enum` `config` `schema` `model` `validator` `util(s)` `helper(s)` `mock` `fixture` |
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `files` | `string[]` | `['src/**/*.ts']` | Globs the rules apply to. |
+| `ignores` | `string[]` | `[]` | Globs to exclude. |
+| `suffixes` | `Record<string, { kind; decorator? }>` | — | Merge on top of the default suffix table (add project suffixes / relax decorators). |
+| `testSuffix` | `'spec' \| 'test' \| false` | `'spec'` | Which single test convention to enforce; `false` disables. |
+| `kebabCase` | `boolean` | `true` | Require kebab-case base names. |
+| `enforceDecorator` | `boolean \| 'warn'` | `'warn'` | `true` => error, `false` => off. Start at `warn` to surface noise from abstract bases before promoting to error. |
+
+> Test files (`*.spec.ts`, `*.e2e-spec.ts`) and suffix-less files (`index.ts`, `main.ts`) are exempt from `allowed-suffix` and `suffix-kind`. Identifier-level naming (interface/type `PascalCase`, no Hungarian prefix) is already covered by the base config's `naming-convention` — this module governs **files**, not symbols.
+
 ## Options
 
 ```js

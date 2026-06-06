@@ -19,6 +19,11 @@
       "import": "./src/configs/barrel.mjs",
       "default": "./src/configs/barrel.mjs"
     },
+    "./nest-naming": {
+      "types": "./src/configs/nest-naming.d.mts",
+      "import": "./src/configs/nest-naming.mjs",
+      "default": "./src/configs/nest-naming.mjs"
+    },
     "./prettier": {
       "import": {
         "types": "./src/prettier.d.mts",
