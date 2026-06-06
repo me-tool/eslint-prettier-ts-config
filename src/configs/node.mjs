@@ -1,9 +1,9 @@
 import pluginN from 'eslint-plugin-n';
 
 const BASE_TEST_FILES = [
-  '**/*.test.{ts,js,mjs}',
-  '**/*.spec.{ts,js,mjs}',
-  '**/*.config.{ts,mts,js,mjs}',
+  '**/*.test.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+  '**/*.spec.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+  '**/*.config.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
 ];
 
 export function node({ testFiles = [] } = {}) {

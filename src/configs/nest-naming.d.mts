@@ -3,8 +3,8 @@ import type { Linter } from 'eslint';
 /**
  * Content form a suffix's file is expected to take.
  * - `class`     — file must export a class (controller, service, dto, ...)
- * - `interface` — file must declare an interface and must not contain a class
- * - `type`      — file must declare a type alias and must not contain a class
+ * - `interface` — file must contain an interface and must not contain a class
+ * - `type`      — file must contain a type alias and must not contain a class
  * - `any`       — filename is allowed, content is NOT checked
  *                 (decorator -> function, constant -> const, middleware -> fn|class)
  */
@@ -70,7 +70,8 @@ export interface NestNamingOptions {
 
 /**
  * NestJS file-naming guardrails: role-suffix whitelist, content<->suffix
- * binding, and a single enforced test-file convention. Self-contained — adds
- * no external ESLint plugin dependency.
+ * binding, ambient declaration placement, no global types folder, and a
+ * single enforced test-file convention. Self-contained — adds no external
+ * ESLint plugin dependency.
  */
 export declare function nestNaming(options?: NestNamingOptions): Linter.Config[];

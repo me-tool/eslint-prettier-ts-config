@@ -37,6 +37,10 @@ export function typescript({ tsconfigRootDir, disableTypeChecked = false } = {})
         '@typescript-eslint/naming-convention': [
           'error',
           {
+            selector: ['class', 'enum', 'typeParameter'],
+            format: ['PascalCase'],
+          },
+          {
             selector: 'interface',
             format: ['PascalCase'],
             custom: { regex: '^I[A-Z]', match: false },
@@ -45,6 +49,10 @@ export function typescript({ tsconfigRootDir, disableTypeChecked = false } = {})
             selector: 'typeAlias',
             format: ['PascalCase'],
             custom: { regex: '^T[A-Z]', match: false },
+          },
+          {
+            selector: 'enumMember',
+            format: ['PascalCase'],
           },
         ],
       },

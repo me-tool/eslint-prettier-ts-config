@@ -1,16 +1,18 @@
 /**
  * NestJS file-naming guardrails (self-contained, no external plugin deps).
  *
- * Enforces three things off-the-shelf rules can't:
+ * Enforces five things off-the-shelf rules can't:
  *   1. filename role-suffix whitelist (+ optional kebab-case base)
  *   2. content<->suffix binding (e.g. *.dto.ts must be a class, *.interface.ts must not contain a class)
  *   3. one test-file convention (default *.spec.ts; blocks *.test.ts, which Nest's
  *      default jest testRegex ".*\\.spec\\.ts$" silently skips)
+ *   4. ambient declaration placement (*.d.ts)
+ *   5. no global src/types folder
  *
  * Suffixes are graded into kinds:
  *   - 'class'     : must export a class (controller/service/dto/...); some also require a decorator
- *   - 'interface' : must declare an interface, must not contain a class
- *   - 'type'      : must declare a type alias, must not contain a class
+ *   - 'interface' : must contain an interface, must not contain a class
+ *   - 'type'      : must contain a type alias, must not contain a class
  *   - 'any'       : filename allowed, content NOT checked
  *                   (decorator -> functions, constant -> const, middleware -> fn|class, etc.)
  *
@@ -44,25 +46,90 @@ export function nestNaming(options = {}) {
     if (!base.endsWith('.ts') || base.endsWith('.d.ts')) return null;
     return base.slice(0, -3).split('.');
   };
+  const declarationFile = (filename) => {
+    const base = String(filename).replace(/\\/g, '/').split('/').pop() || '';
+    return base.endsWith('.d.ts');
+  };
+  const inGlobalTypesFolder = (filename) => {
+    const normalized = String(filename).replace(/\\/g, '/');
+    const cwd = process.cwd().replace(/\\/g, '/');
+    return (
+      normalized.startsWith('types/') ||
+      normalized.startsWith(`${cwd}/types/`) ||
+      /(^|\/)src\/types\//.test(normalized)
+    );
+  };
   // A test file carries its marker in the LAST segment (x.spec.ts / x.e2e-spec.ts).
   // Checking every segment would mis-classify a real role file named "test" (test.service.ts).
   const isTest = (parts) => TEST_MARKERS.has(parts[parts.length - 1]);
   const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
-  const collect = (body) => {
-    const out = { classes: [], interfaces: [], typeAliases: [] };
-    const unwrap = (n) =>
-      (n.type === 'ExportNamedDeclaration' || n.type === 'ExportDefaultDeclaration') && n.declaration
-        ? n.declaration
-        : n;
+  const unwrapDeclaration = (node) =>
+    (node.type === 'ExportNamedDeclaration' || node.type === 'ExportDefaultDeclaration') &&
+    node.declaration
+      ? node.declaration
+      : node;
+
+  const isExportedDeclaration = (node) =>
+    node.type === 'ExportNamedDeclaration' || node.type === 'ExportDefaultDeclaration';
+
+  const collectTopLevel = (body) => {
+    const out = {
+      classes: [],
+      exportedInterfaces: [],
+      exportedTypeAliases: [],
+      interfaces: [],
+      typeAliases: [],
+    };
+    const exportedNames = new Set();
     for (const raw of body) {
-      const n = unwrap(raw);
-      if (n.type === 'ClassDeclaration') out.classes.push(n);
-      else if (n.type === 'TSInterfaceDeclaration') out.interfaces.push(n);
-      else if (n.type === 'TSTypeAliasDeclaration') out.typeAliases.push(n);
+      if (raw.type === 'ExportNamedDeclaration' && !raw.declaration) {
+        for (const specifier of raw.specifiers ?? []) {
+          const local = specifier.local?.name;
+          if (local) exportedNames.add(local);
+        }
+      }
+    }
+    for (const raw of body) {
+      const node = unwrapDeclaration(raw);
+      const exported = isExportedDeclaration(raw) || exportedNames.has(node.id?.name);
+      if (node.type === 'ClassDeclaration') out.classes.push(node);
+      else if (node.type === 'TSInterfaceDeclaration') {
+        out.interfaces.push(node);
+        if (exported) out.exportedInterfaces.push(node);
+      } else if (node.type === 'TSTypeAliasDeclaration') {
+        out.typeAliases.push(node);
+        if (exported) out.exportedTypeAliases.push(node);
+      }
     }
     return out;
   };
+
+  const visitAst = (node, visitor, seen = new WeakSet()) => {
+    if (!node || typeof node !== 'object' || seen.has(node)) return;
+    seen.add(node);
+    if (typeof node.type === 'string') visitor(node);
+    for (const [key, value] of Object.entries(node)) {
+      if (
+        key === 'parent' ||
+        key === 'loc' ||
+        key === 'range' ||
+        key === 'tokens' ||
+        key === 'comments'
+      ) {
+        continue;
+      }
+      if (Array.isArray(value)) {
+        for (const item of value) visitAst(item, visitor, seen);
+      } else if (value && typeof value === 'object' && typeof value.type === 'string') {
+        visitAst(value, visitor, seen);
+      }
+    }
+  };
+
+  const isAmbientDeclaration = (node) =>
+    (node.type === 'TSModuleDeclaration' && node.id.type === 'Literal') || node.declare === true;
+
   const decoratorName = (d) => {
     const e = d.expression;
     if (e.type === 'CallExpression' && e.callee.type === 'Identifier') return e.callee.name;
@@ -123,10 +190,14 @@ export function nestNaming(options = {}) {
             missingClass:
               "'*.{{suffix}}.ts' must export a class. Move pure types to *.interface.ts / *.type.ts.",
             missingInterface:
-              "'*.interface.ts' must declare an interface. Use *.type.ts for union/utility types.",
+              "'*.interface.ts' must contain an interface. Use *.type.ts for union/utility types.",
             missingTypeAlias:
-              "'*.type.ts' must declare a type alias. Use *.interface.ts for object shapes.",
+              "'*.type.ts' must contain a type alias. Use *.interface.ts for object shapes.",
             classInTypeFile: "'*.{{suffix}}.ts' is a type-only file and must not contain a class.",
+            exportedInterfaceInWrongFile:
+              "Exported interfaces must live in '*.interface.ts'. Keep only private narrow utility interfaces in implementation files.",
+            exportedTypeInWrongFile:
+              "Exported type aliases must live in '*.type.ts'. Keep only private narrow utility types in implementation files.",
           },
         },
         create(ctx) {
@@ -135,10 +206,19 @@ export function nestNaming(options = {}) {
           if (!parts || parts.length < 2 || isTest(parts)) return {};
           const suffix = parts[parts.length - 1];
           const def = SUFFIXES[suffix];
-          if (!def || def.kind === 'any') return {};
+          if (!def) return {};
           return {
             Program(node) {
-              const { classes, interfaces, typeAliases } = collect(node.body);
+              const { classes, exportedInterfaces, exportedTypeAliases, interfaces, typeAliases } =
+                collectTopLevel(node.body);
+              if (def.kind !== 'interface') {
+                for (const item of exportedInterfaces)
+                  ctx.report({ node: item, messageId: 'exportedInterfaceInWrongFile' });
+              }
+              if (def.kind !== 'type') {
+                for (const item of exportedTypeAliases)
+                  ctx.report({ node: item, messageId: 'exportedTypeInWrongFile' });
+              }
               if (def.kind === 'class') {
                 if (classes.length === 0)
                   ctx.report({ node, messageId: 'missingClass', data: { suffix } });
@@ -173,7 +253,7 @@ export function nestNaming(options = {}) {
           if (!expected) return {};
           return {
             Program(node) {
-              const { classes } = collect(node.body);
+              const { classes } = collectTopLevel(node.body);
               if (classes.length === 0) return;
               const ok = classes.some((c) =>
                 (c.decorators ?? []).some((d) => decoratorName(d) === expected),
@@ -217,6 +297,78 @@ export function nestNaming(options = {}) {
           };
         },
       },
+
+      'declaration-file': {
+        meta: {
+          type: 'problem',
+          schema: [],
+          messages: {
+            misplaced:
+              "Ambient declarations (`declare ...`) must live in '*.d.ts' files so type-aware linting and IDEs can discover them reliably.",
+            domainType:
+              "Do not put project domain types in '*.d.ts'. Use co-located '*.interface.ts' or '*.type.ts' files; reserve '*.d.ts' for ambient declarations.",
+          },
+        },
+        create(ctx) {
+          const fn = ctx.filename ?? ctx.getFilename();
+          if (declarationFile(fn)) {
+            const reportDomainType = (node) => {
+              ctx.report({ node, messageId: 'domainType' });
+            };
+            const checkTopLevel = (node) => {
+              const declaration =
+                unwrapDeclaration(node);
+              if (!declaration) return;
+              if (declaration.type === 'TSModuleDeclaration') return;
+              if (declaration.declare === true) return;
+              if (
+                declaration.type === 'TSInterfaceDeclaration' ||
+                declaration.type === 'TSTypeAliasDeclaration' ||
+                declaration.type === 'ClassDeclaration' ||
+                declaration.type === 'TSEnumDeclaration' ||
+                declaration.type === 'TSDeclareFunction' ||
+                declaration.type === 'VariableDeclaration'
+              ) {
+                reportDomainType(declaration);
+              }
+            };
+            return {
+              Program(node) {
+                for (const statement of node.body) checkTopLevel(statement);
+              },
+            };
+          }
+          return {
+            Program(node) {
+              visitAst(node, (current) => {
+                if (isAmbientDeclaration(current)) {
+                  ctx.report({ node: current, messageId: 'misplaced' });
+                }
+              });
+            },
+          };
+        },
+      },
+
+      'no-global-types-folder': {
+        meta: {
+          type: 'problem',
+          schema: [],
+          messages: {
+            forbidden:
+              "Do not put project types in a global 'types/' folder. Co-locate '*.interface.ts' and '*.type.ts' files with the owning module.",
+          },
+        },
+        create(ctx) {
+          const fn = ctx.filename ?? ctx.getFilename();
+          if (!inGlobalTypesFolder(fn)) return {};
+          return {
+            Program(node) {
+              ctx.report({ node, messageId: 'forbidden' });
+            },
+          };
+        },
+      },
     },
   };
 
@@ -234,6 +386,8 @@ export function nestNaming(options = {}) {
         'nest-naming/suffix-kind': 'error',
         'nest-naming/suffix-decorator': decoratorSeverity,
         'nest-naming/test-suffix': 'error',
+        'nest-naming/declaration-file': 'error',
+        'nest-naming/no-global-types-folder': 'error',
       },
     },
   ];

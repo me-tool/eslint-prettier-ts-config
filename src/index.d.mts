@@ -33,12 +33,21 @@ export interface DefineConfigOptions {
 
   /**
    * Additional abbreviations to allow in `unicorn/prevent-abbreviations`.
-   * Merged with the built-in allowList (req, res, err, ctx, env, db, fn, args, params, props, ref, e2e).
+   * Merged with the built-in allowList (args, ctx, db, e2e, Env, env, err, fn, params, Prod, prod, props, ref, req, res, util, utils).
    *
    * @example
    * defineConfig({ abbreviations: { src: true, dest: true } })
    */
   abbreviations?: Record<string, boolean>;
+
+  /**
+   * Additional patterns ignored by `unicorn/prevent-abbreviations`.
+   * Merged with built-in ignores for conventional names such as `*.e2e.ts`.
+   *
+   * @example
+   * defineConfig({ abbreviationIgnore: ['(^|[._-])api($|[._-])'] })
+   */
+  abbreviationIgnore?: string[];
 
   /**
    * Additional file globs where devDependency imports are allowed

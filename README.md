@@ -19,10 +19,10 @@ Designed as **AI coding guardrails** — strict type checks, complexity detectio
 
 ## Requirements
 
-- **Node.js** >= 18.18.0
-- **ESLint** >= 9.0.0
-- **TypeScript** >= 5.0.0 (optional — works without it when `disableTypeChecked: true`)
-- **Prettier** >= 3.0.0 (optional — only needed if using `./prettier` export)
+- **Node.js** ^20.19.0 || ^22.13.0 || >=24
+- **ESLint** >= 10.4.1
+- **TypeScript** >= 6.0.3 (optional — works without it when `disableTypeChecked: true`)
+- **Prettier** >= 3.8.3 (optional — only needed if using `./prettier` export)
 
 ## Quick Start
 
@@ -67,6 +67,8 @@ Done. Run `pnpm lint` to check, `pnpm lint:fix` to auto-fix.
 > **Note:** Your project must have a `tsconfig.json` for type-aware rules to work. If you don't have one, set `disableTypeChecked: true` in the options.
 
 ### 5. (Optional) Spell Checking
+
+Requires **Node.js** >= 22.18.0 because `@cspell/eslint-plugin` v10 uses that runtime baseline.
 
 ```bash
 pnpm add -D @cspell/eslint-plugin
@@ -123,7 +125,15 @@ The rule only applies to files matching `enforcedIn` — internal imports within
 
 ### 7. (Optional) NestJS File Naming
 
-Enforce the NestJS file-naming convention: role-suffix whitelist, content↔suffix binding, and a single test-file convention. Self-contained — adds **no** external ESLint plugin dependency.
+Enforce the NestJS file-naming convention: role-suffix whitelist, content↔suffix binding, ambient declaration placement, and a single test-file convention. Self-contained — adds **no** external ESLint plugin dependency.
+
+General form:
+
+```txt
+<kebab-base>.<role>.ts
+```
+
+The role suffix describes the dominant symbol's role, not merely its technical shape. One file should have one role: if a `*.service.ts` grows DTOs, interfaces, or exported utility types, split them into the role-specific files. Narrow private utility types that are not externally imported may stay close to the implementation.
 
 ```js
 // eslint.config.mjs
@@ -136,23 +146,81 @@ export default [
 ];
 ```
 
-Four rules:
+Rules:
 
 | Rule | Catches |
 |------|---------|
 | `nest-naming/allowed-suffix` | Filename suffix not in the role whitelist (e.g. `*.widget.ts`); non-kebab base (`CreateUser.dto.ts`) |
-| `nest-naming/suffix-kind` | Content doesn't match suffix: `*.dto.ts` written as `interface`/`type`; a class inside `*.interface.ts` / `*.type.ts` |
+| `nest-naming/suffix-kind` | Content doesn't match suffix: `*.dto.ts` written as `interface`/`type`; a class inside `*.interface.ts` / `*.type.ts`; exported interfaces/types left in the wrong role file |
 | `nest-naming/suffix-decorator` | A `*.controller.ts` / `*.service.ts` / `*.module.ts` / `*.guard.ts` class missing its `@Controller` / `@Injectable` / `@Module` decorator (severity = `enforceDecorator`, default `warn`) |
 | `nest-naming/test-suffix` | Wrong test convention: `*.test.ts` when Nest's default jest `testRegex` only matches `*.spec.ts` (silent skip) |
+| `nest-naming/declaration-file` | Ambient `declare ...` declarations hidden in normal implementation files, or project domain types placed in `*.d.ts` |
+| `nest-naming/no-global-types-folder` | Project types placed in a global `types/` or `src/types/` folder instead of being co-located with the owning module |
 
-Suffixes are graded by content form. `class` suffixes must export a class; `interface`/`type` must declare that construct and must not contain a class; `any` suffixes are filename-allowed but content-free — because they aren't classes:
+Suffixes are graded by runtime shape. `class` files emit JS and participate in DI/decorators/new; `interface`/`type` files disappear after compilation; `any` files are allowed because they may be functions, constants, or mixed framework forms.
 
-| Kind | Suffixes |
-|------|----------|
-| `class` (+ decorator) | `controller` `service` `module` `guard` `pipe` `interceptor` `filter` `resolver` `gateway` |
-| `class` (decorator varies) | `dto` `entity` `repository` `strategy` `subscriber` |
-| `interface` / `type` | `interface` `type` |
-| `any` (content-free) | `decorator` (functions) `middleware` `constant(s)` `enum` `config` `schema` `model` `validator` `util(s)` `helper(s)` `mock` `fixture` |
+Class suffixes with enforced decorators:
+
+| Suffix | Role | Decorator |
+|--------|------|-----------|
+| `controller` | HTTP/RPC entrypoint; orchestration, not business logic | `@Controller` |
+| `service` | Injectable application/domain logic | `@Injectable` |
+| `module` | DI organization unit | `@Module` |
+| `guard` | `CanActivate` access control | `@Injectable` |
+| `pipe` | `PipeTransform` validation/transformation | `@Injectable` |
+| `interceptor` | `NestInterceptor` around advice | `@Injectable` |
+| `filter` | `ExceptionFilter` handling | `@Catch` |
+| `resolver` | GraphQL resolver | `@Resolver` |
+| `gateway` | WebSocket gateway | `@WebSocketGateway` |
+
+Class suffixes without fixed decorator enforcement:
+
+| Suffix | Role |
+|--------|------|
+| `dto` | Boundary data contract with runtime validation; DTOs must be classes |
+| `entity` | Persistence mapping / domain entity |
+| `repository` | Custom repository |
+| `strategy` | Passport strategy |
+| `subscriber` | TypeORM event subscriber |
+
+Compile-time suffixes:
+
+| Suffix | Must contain | Forbidden |
+|--------|--------------|-----------|
+| `interface` | `interface` declaration | class |
+| `type` | `type` alias | class |
+
+Content-free suffixes:
+
+| Suffixes | Typical content |
+|----------|-----------------|
+| `decorator` | Custom decorator functions / factories |
+| `middleware` | Function middleware or injectable class |
+| `constant` / `constants` | Exported constants |
+| `enum` | Enum declarations |
+| `config` | `registerAs()` functions or config objects |
+| `schema` / `model` | Mongoose / GraphQL mixed forms |
+| `validator` | `@ValidatorConstraint` class or validation functions |
+| `util` / `utils` / `helper` / `helpers` | Pure helper functions |
+| `mock` / `fixture` | Test helpers |
+
+Content binding decisions:
+
+- DTOs must be classes. `class-validator` relies on runtime objects; `interface`/`type` DTOs compile away and can silently bypass `ValidationPipe`.
+- `*.interface.ts` and `*.type.ts` must not contain classes.
+- Use `*.interface.ts` for `implements`, declaration merging, `extends`, and ordinary object shapes.
+- Use `*.type.ts` for union, intersection, mapped, conditional, tuple, and utility types.
+- Do not use `*.d.ts` for project domain types. Reserve `*.d.ts` for ambient declarations such as third-party typings, `declare global`, and `declare module`.
+- Do not centralize project types in a global `types/` folder; co-locate them with the owning module.
+- Base names must be kebab-case: `create-user.dto.ts`, not `CreateUser.dto.ts`.
+
+Test suffixes:
+
+| Type | Suffix | Reason |
+|------|--------|--------|
+| Unit test | `*.spec.ts` | Matches Nest's default Jest `testRegex` |
+| E2E test | `*.e2e-spec.ts` | Matches Nest's e2e Jest config |
+| Forbidden | `*.test.ts` / `*.tests.ts` | Can be silently skipped in Nest projects |
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -163,7 +231,7 @@ Suffixes are graded by content form. `class` suffixes must export a class; `inte
 | `kebabCase` | `boolean` | `true` | Require kebab-case base names. |
 | `enforceDecorator` | `boolean \| 'warn'` | `'warn'` | `true` => error, `false` => off. Start at `warn` to surface noise from abstract bases before promoting to error. |
 
-> Test files (`*.spec.ts`, `*.e2e-spec.ts`) and suffix-less files (`index.ts`, `main.ts`) are exempt from `allowed-suffix` and `suffix-kind`. Identifier-level naming (interface/type `PascalCase`, no Hungarian prefix) is already covered by the base config's `naming-convention` — this module governs **files**, not symbols.
+> Test files (`*.spec.ts`, `*.e2e-spec.ts`) and suffix-less files (`index.ts`, `main.ts`) are exempt from `allowed-suffix` and `suffix-kind`. Identifier naming is handled separately by the base config: classes, interfaces, type aliases, enums, enum members, and type parameters use `PascalCase`; interfaces cannot use Hungarian `I` prefixes.
 
 ## Options
 
@@ -179,6 +247,9 @@ export default defineConfig({
 
   // Additional abbreviations for unicorn/prevent-abbreviations (merged with defaults)
   abbreviations: { src: true, dest: true },
+
+  // Additional prevent-abbreviations ignore patterns (merged with defaults)
+  abbreviationIgnore: ['(^|[._-])api($|[._-])'],
 
   // Additional file globs where devDependency imports are allowed (merged with defaults)
   testFiles: ['**/__tests__/**', '**/e2e/**'],
@@ -244,7 +315,7 @@ Key rules that catch common AI-generated code issues:
 
 ### Notable Unicorn Customizations
 
-- **`prevent-abbreviations`**: Allows common short names: `req`, `res`, `err`, `ctx`, `env`, `db`, `fn`, `args`, `params`, `props`, `ref`, `e2e`
+- **`prevent-abbreviations`**: Allows common short names: `args`, `ctx`, `db`, `e2e`, `Env`, `env`, `err`, `fn`, `params`, `Prod`, `prod`, `props`, `ref`, `req`, `res`, `util`, `utils`; ignores conventional `*.e2e.*` filename segments
 - **`no-null`**: Disabled — Node.js/TS ecosystem uses `null` pervasively
 - **`no-array-reduce`**: Disabled — `reduce` is idiomatic for data aggregation
 - **`prefer-module`**: Disabled — supports mixed CJS/ESM codebases
@@ -276,7 +347,7 @@ Key rules that catch common AI-generated code issues:
 
 ## Environment
 
-Targets **Node.js + ES2025** globals by default. Uses `eslint-plugin-n`'s `flat/recommended-module` preset (assumes `"type": "module"` in your project).
+Targets modern Node.js runtimes (`^20.19.0 || ^22.13.0 || >=24`) with `ecmaVersion: 'latest'` and Node + ES2025 globals by default. Uses `eslint-plugin-n`'s `flat/recommended-module` preset (assumes `"type": "module"` in your project).
 
 ## VSCode Setup
 

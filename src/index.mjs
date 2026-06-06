@@ -33,6 +33,7 @@ export function defineConfig(options = {}) {
     overrides = {},
     disableTypeChecked = false,
     abbreviations = {},
+    abbreviationIgnore = [],
     testFiles = [],
   } = options;
 
@@ -63,7 +64,7 @@ export function defineConfig(options = {}) {
     ...importX(),
 
     // 6. Modern JS enforcement
-    ...unicorn({ abbreviations }),
+    ...unicorn({ abbreviations, abbreviationIgnore }),
 
     // 7. Complexity + bug detection
     ...sonarjs(),
