@@ -5,10 +5,11 @@ import type { Linter } from 'eslint';
  * - `class`     — file must export a class (controller, service, dto, ...)
  * - `interface` — file must contain an interface and must not contain a class
  * - `type`      — file must contain a type alias and must not contain a class
+ * - `types`     — file must contain an interface or type alias (both allowed), must not contain a class
  * - `any`       — filename is allowed, content is NOT checked
  *                 (decorator -> function, constant -> const, middleware -> fn|class)
  */
-export type SuffixKind = 'class' | 'interface' | 'type' | 'any';
+export type SuffixKind = 'class' | 'interface' | 'type' | 'types' | 'any';
 
 export interface SuffixDef {
   /** Content form required for files with this suffix. */

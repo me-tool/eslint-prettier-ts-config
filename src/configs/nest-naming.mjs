@@ -13,6 +13,7 @@
  *   - 'class'     : must export a class (controller/service/dto/...); some also require a decorator
  *   - 'interface' : must contain an interface, must not contain a class
  *   - 'type'      : must contain a type alias, must not contain a class
+ *   - 'types'     : must contain an interface OR type alias (both allowed), must not contain a class
  *   - 'any'       : filename allowed, content NOT checked
  *                   (decorator -> functions, constant -> const, middleware -> fn|class, etc.)
  *
@@ -193,11 +194,13 @@ export function nestNaming(options = {}) {
               "'*.interface.ts' must contain an interface. Use *.type.ts for union/utility types.",
             missingTypeAlias:
               "'*.type.ts' must contain a type alias. Use *.interface.ts for object shapes.",
+            missingTypes:
+              "'*.{{suffix}}.ts' must contain an interface or type alias.",
             classInTypeFile: "'*.{{suffix}}.ts' is a type-only file and must not contain a class.",
             exportedInterfaceInWrongFile:
-              "Exported interfaces must live in '*.interface.ts'. Keep only private narrow utility interfaces in implementation files.",
+              "Exported interfaces must live in '*.interface.ts' or '*.type.ts'. Keep only private narrow utility interfaces in implementation files.",
             exportedTypeInWrongFile:
-              "Exported type aliases must live in '*.type.ts'. Keep only private narrow utility types in implementation files.",
+              "Exported type aliases must live in '*.type.ts' or '*.interface.ts'. Keep only private narrow utility types in implementation files.",
           },
         },
         create(ctx) {
@@ -211,11 +214,13 @@ export function nestNaming(options = {}) {
             Program(node) {
               const { classes, exportedInterfaces, exportedTypeAliases, interfaces, typeAliases } =
                 collectTopLevel(node.body);
-              if (def.kind !== 'interface') {
+              const allowsInterface = def.kind === 'interface' || def.kind === 'types';
+              const allowsType = def.kind === 'type' || def.kind === 'types';
+              if (!allowsInterface) {
                 for (const item of exportedInterfaces)
                   ctx.report({ node: item, messageId: 'exportedInterfaceInWrongFile' });
               }
-              if (def.kind !== 'type') {
+              if (!allowsType) {
                 for (const item of exportedTypeAliases)
                   ctx.report({ node: item, messageId: 'exportedTypeInWrongFile' });
               }
@@ -228,6 +233,11 @@ export function nestNaming(options = {}) {
                   ctx.report({ node: c, messageId: 'classInTypeFile', data: { suffix } });
               } else if (def.kind === 'type') {
                 if (typeAliases.length === 0) ctx.report({ node, messageId: 'missingTypeAlias' });
+                for (const c of classes)
+                  ctx.report({ node: c, messageId: 'classInTypeFile', data: { suffix } });
+              } else if (def.kind === 'types') {
+                if (interfaces.length === 0 && typeAliases.length === 0)
+                  ctx.report({ node, messageId: 'missingTypes', data: { suffix } });
                 for (const c of classes)
                   ctx.report({ node: c, messageId: 'classInTypeFile', data: { suffix } });
               }
@@ -410,9 +420,9 @@ const DEFAULT_SUFFIXES = {
   repository: { kind: 'class' },
   strategy: { kind: 'class' },
   subscriber: { kind: 'class' },
-  // type constructs
-  interface: { kind: 'interface' },
-  type: { kind: 'type' },
+  // type constructs — both allow interface + type alias coexistence
+  interface: { kind: 'types' },
+  type: { kind: 'types' },
   // filename-allowed, content free (functions / consts / mixed forms)
   decorator: { kind: 'any' },
   middleware: { kind: 'any' },
