@@ -28,7 +28,7 @@ export function nestNaming(options = {}) {
     testSuffix = 'spec',
     kebabCase = true,
     enforceDecorator = 'warn',
-    typeExemptFiles = ['index', 'main'],
+    typeExemptFiles = ['index', 'main', 'types'],
   } = options;
 
   const SUFFIXES = { ...DEFAULT_SUFFIXES, ...suffixes };
@@ -212,7 +212,10 @@ export function nestNaming(options = {}) {
           // Single-segment files (e.g. unit.ts, types.ts): check exported types unless exempt
           if (parts.length < 2) {
             const basename = parts[0];
-            if (typeExemptFiles.includes(basename)) return {};
+            // Exempt explicitly listed files and files whose basename is a type-allowing suffix
+            const suffixDef = SUFFIXES[basename];
+            const isTypeSuffix = suffixDef && (suffixDef.kind === 'types' || suffixDef.kind === 'type' || suffixDef.kind === 'interface');
+            if (typeExemptFiles.includes(basename) || isTypeSuffix) return {};
             return {
               Program(node) {
                 const { exportedInterfaces, exportedTypeAliases } = collectTopLevel(node.body);
