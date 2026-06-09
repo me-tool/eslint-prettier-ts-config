@@ -28,6 +28,7 @@ export function nestNaming(options = {}) {
     testSuffix = 'spec',
     kebabCase = true,
     enforceDecorator = 'warn',
+    typeExemptFiles = ['index', 'main'],
   } = options;
 
   const SUFFIXES = { ...DEFAULT_SUFFIXES, ...suffixes };
@@ -206,7 +207,23 @@ export function nestNaming(options = {}) {
         create(ctx) {
           const fn = ctx.filename ?? ctx.getFilename();
           const parts = segmentsOf(fn);
-          if (!parts || parts.length < 2 || isTest(parts)) return {};
+          if (!parts || isTest(parts)) return {};
+
+          // Single-segment files (e.g. unit.ts, types.ts): check exported types unless exempt
+          if (parts.length < 2) {
+            const basename = parts[0];
+            if (typeExemptFiles.includes(basename)) return {};
+            return {
+              Program(node) {
+                const { exportedInterfaces, exportedTypeAliases } = collectTopLevel(node.body);
+                for (const item of exportedInterfaces)
+                  ctx.report({ node: item, messageId: 'exportedInterfaceInWrongFile' });
+                for (const item of exportedTypeAliases)
+                  ctx.report({ node: item, messageId: 'exportedTypeInWrongFile' });
+              },
+            };
+          }
+
           const suffix = parts[parts.length - 1];
           const def = SUFFIXES[suffix];
           if (!def) return {};

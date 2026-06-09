@@ -67,6 +67,14 @@ export interface NestNamingOptions {
    * @default 'warn'
    */
   enforceDecorator?: boolean | 'warn';
+
+  /**
+   * Single-segment filenames (no dot-suffix, e.g. `unit.ts`, `types.ts`) that
+   * are exempt from the exported-type check. These files may freely export
+   * interfaces and type aliases without being flagged.
+   * @default ['index', 'main']
+   */
+  typeExemptFiles?: string[];
 }
 
 /**
