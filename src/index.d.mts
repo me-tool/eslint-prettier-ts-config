@@ -50,12 +50,19 @@ export interface DefineConfigOptions {
   abbreviationIgnore?: string[];
 
   /**
+   * Maximum depth for `import-x/no-cycle` detection.
+   * Higher values catch deeper cycles but slow down linting.
+   * @default 3
+   */
+  maxCycleDepth?: number;
+
+  /**
    * Additional file globs where devDependency imports are allowed
    * (disables `n/no-unpublished-import` and `n/no-unpublished-require`).
    * Merged with the built-in patterns: `*.test.*`, `*.spec.*`, `*.config.*`.
    *
    * @example
-   * defineConfig({ testFiles: ['**\/__tests__/**', '**/e2e/**'] })
+   * defineConfig({ testFiles: ['**\/__tests__/**'] })
    */
   testFiles?: string[];
 }

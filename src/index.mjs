@@ -35,6 +35,7 @@ export function defineConfig(options = {}) {
     abbreviations = {},
     abbreviationIgnore = [],
     testFiles = [],
+    maxCycleDepth,
   } = options;
 
   /** @type {import('eslint').Linter.Config[]} */
@@ -61,7 +62,7 @@ export function defineConfig(options = {}) {
     ...typescript({ tsconfigRootDir, disableTypeChecked }),
 
     // 5. Import organization
-    ...importX(),
+    ...importX({ maxCycleDepth }),
 
     // 6. Modern JS enforcement
     ...unicorn({ abbreviations, abbreviationIgnore }),
