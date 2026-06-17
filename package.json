@@ -1,6 +1,6 @@
 {
   "name": "@me-tool/eslint-prettier-ts-config",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Opinionated ESLint v9 flat config + Prettier for TypeScript — AI coding guardrails",
   "type": "module",
   "exports": {
