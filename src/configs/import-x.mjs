@@ -1,9 +1,9 @@
-import pluginImportX from 'eslint-plugin-import-x';
+import { flatConfigs } from 'eslint-plugin-import-x';
 
 export function importX({ maxCycleDepth = 3 } = {}) {
   return [
-    pluginImportX.flatConfigs.recommended,
-    pluginImportX.flatConfigs.typescript,
+    flatConfigs.recommended,
+    flatConfigs.typescript,
     {
       files: ['**/*.{ts,mts,cts,tsx}'],
       rules: {

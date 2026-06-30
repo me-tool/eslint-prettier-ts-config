@@ -1,3 +1,7 @@
+const DEFAULT_TYPE_EXEMPT_FILES = ['index', 'main', 'types'];
+const TEST_MARKERS = new Set(['spec', 'test', 'tests', 'e2e-spec', 'e2e-test']);
+const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
 /**
  * NestJS file-naming guardrails (self-contained, no external plugin deps).
  *
@@ -28,382 +32,36 @@ export function nestNaming(options = {}) {
     testSuffix = 'spec',
     kebabCase = true,
     enforceDecorator = 'warn',
-    typeExemptFiles = ['index', 'main', 'types'],
+    typeExemptFiles = DEFAULT_TYPE_EXEMPT_FILES,
   } = options;
 
-  const SUFFIXES = { ...DEFAULT_SUFFIXES, ...suffixes };
-  const ALLOWED = Object.keys(SUFFIXES);
-
-  const TEST_MARKERS = new Set(['spec', 'test', 'tests', 'e2e-spec', 'e2e-test']);
-  const WRONG_TEST =
-    testSuffix === 'spec'
-      ? new Set(['test', 'tests', 'e2e-test'])
-      : testSuffix === 'test'
-        ? new Set(['spec', 'e2e-spec'])
-        : new Set();
-  const wantSuffix = testSuffix === 'test' ? 'test' : 'spec';
-
-  const segmentsOf = (filename) => {
-    const base = String(filename).replace(/\\/g, '/').split('/').pop() || '';
-    if (!base.endsWith('.ts') || base.endsWith('.d.ts')) return null;
-    return base.slice(0, -3).split('.');
-  };
-  const declarationFile = (filename) => {
-    const base = String(filename).replace(/\\/g, '/').split('/').pop() || '';
-    return base.endsWith('.d.ts');
-  };
-  const inGlobalTypesFolder = (filename) => {
-    const normalized = String(filename).replace(/\\/g, '/');
-    const cwd = process.cwd().replace(/\\/g, '/');
-    return (
-      normalized.startsWith('types/') ||
-      normalized.startsWith(`${cwd}/types/`) ||
-      /(^|\/)src\/types\//.test(normalized)
-    );
-  };
-  // A test file carries its marker in the LAST segment (x.spec.ts / x.e2e-spec.ts).
-  // Checking every segment would mis-classify a real role file named "test" (test.service.ts).
-  const isTest = (parts) => TEST_MARKERS.has(parts[parts.length - 1]);
-  const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-
-  const unwrapDeclaration = (node) =>
-    (node.type === 'ExportNamedDeclaration' || node.type === 'ExportDefaultDeclaration') &&
-    node.declaration
-      ? node.declaration
-      : node;
-
-  const isExportedDeclaration = (node) =>
-    node.type === 'ExportNamedDeclaration' || node.type === 'ExportDefaultDeclaration';
-
-  const collectTopLevel = (body) => {
-    const out = {
-      classes: [],
-      exportedInterfaces: [],
-      exportedTypeAliases: [],
-      interfaces: [],
-      typeAliases: [],
-    };
-    const exportedNames = new Set();
-    for (const raw of body) {
-      if (raw.type === 'ExportNamedDeclaration' && !raw.declaration) {
-        for (const specifier of raw.specifiers ?? []) {
-          const local = specifier.local?.name;
-          if (local) exportedNames.add(local);
-        }
-      }
-    }
-    for (const raw of body) {
-      const node = unwrapDeclaration(raw);
-      const exported = isExportedDeclaration(raw) || exportedNames.has(node.id?.name);
-      if (node.type === 'ClassDeclaration') out.classes.push(node);
-      else if (node.type === 'TSInterfaceDeclaration') {
-        out.interfaces.push(node);
-        if (exported) out.exportedInterfaces.push(node);
-      } else if (node.type === 'TSTypeAliasDeclaration') {
-        out.typeAliases.push(node);
-        if (exported) out.exportedTypeAliases.push(node);
-      }
-    }
-    return out;
-  };
-
-  const visitAst = (node, visitor, seen = new WeakSet()) => {
-    if (!node || typeof node !== 'object' || seen.has(node)) return;
-    seen.add(node);
-    if (typeof node.type === 'string') visitor(node);
-    for (const [key, value] of Object.entries(node)) {
-      if (
-        key === 'parent' ||
-        key === 'loc' ||
-        key === 'range' ||
-        key === 'tokens' ||
-        key === 'comments'
-      ) {
-        continue;
-      }
-      if (Array.isArray(value)) {
-        for (const item of value) visitAst(item, visitor, seen);
-      } else if (value && typeof value === 'object' && typeof value.type === 'string') {
-        visitAst(value, visitor, seen);
-      }
-    }
-  };
-
-  const isAmbientDeclaration = (node) =>
-    (node.type === 'TSModuleDeclaration' && node.id.type === 'Literal') || node.declare === true;
-
-  const decoratorName = (d) => {
-    const e = d.expression;
-    if (e.type === 'CallExpression' && e.callee.type === 'Identifier') return e.callee.name;
-    if (e.type === 'Identifier') return e.name;
-    return null;
-  };
+  const suffixDefinitions = { ...DEFAULT_SUFFIXES, ...suffixes };
+  const allowedSuffixes = Object.keys(suffixDefinitions);
+  const wrongTestMarkers = getWrongTestMarkers(testSuffix);
+  const wantedTestSuffix = getWantedTestSuffix(testSuffix);
 
   const plugin = {
     meta: { name: 'nest-naming', version: '1.0.0' },
     rules: {
-      'allowed-suffix': {
-        meta: {
-          type: 'problem',
-          schema: [],
-          messages: {
-            unknownSuffix:
-              "Filename suffix '.{{suffix}}.ts' is not an allowed role suffix. Allowed: {{allowed}}.",
-            nonKebab: "Filename base '{{base}}' must be kebab-case (e.g. create-user.dto.ts).",
-          },
-        },
-        create(ctx) {
-          const fn = ctx.filename ?? ctx.getFilename();
-          const parts = segmentsOf(fn);
-          if (!parts || parts.length < 2 || isTest(parts)) return {};
-          const suffix = parts[parts.length - 1];
-          return {
-            Program(node) {
-              if (!ALLOWED.includes(suffix)) {
-                ctx.report({
-                  node,
-                  messageId: 'unknownSuffix',
-                  data: { suffix, allowed: ALLOWED.join(', ') },
-                });
-                return;
-              }
-              if (kebabCase) {
-                for (const seg of parts.slice(0, -1)) {
-                  if (!KEBAB.test(seg)) {
-                    ctx.report({
-                      node,
-                      messageId: 'nonKebab',
-                      data: { base: parts.slice(0, -1).join('.') },
-                    });
-                    break;
-                  }
-                }
-              }
-            },
-          };
-        },
-      },
-
-      'suffix-kind': {
-        meta: {
-          type: 'problem',
-          schema: [],
-          messages: {
-            missingClass:
-              "'*.{{suffix}}.ts' must export a class. Move pure types to *.interface.ts / *.type.ts.",
-            missingInterface:
-              "'*.interface.ts' must contain an interface. Use *.type.ts for union/utility types.",
-            missingTypeAlias:
-              "'*.type.ts' must contain a type alias. Use *.interface.ts for object shapes.",
-            missingTypes:
-              "'*.{{suffix}}.ts' must contain an interface or type alias.",
-            classInTypeFile: "'*.{{suffix}}.ts' is a type-only file and must not contain a class.",
-            exportedInterfaceInWrongFile:
-              "Exported interfaces must live in '*.interface.ts' or '*.type.ts'. Keep only private narrow utility interfaces in implementation files.",
-            exportedTypeInWrongFile:
-              "Exported type aliases must live in '*.type.ts' or '*.interface.ts'. Keep only private narrow utility types in implementation files.",
-          },
-        },
-        create(ctx) {
-          const fn = ctx.filename ?? ctx.getFilename();
-          const parts = segmentsOf(fn);
-          if (!parts || isTest(parts)) return {};
-
-          // Single-segment files (e.g. unit.ts, types.ts): check exported types unless exempt
-          if (parts.length < 2) {
-            const basename = parts[0];
-            // Exempt explicitly listed files and files whose basename is a type-allowing suffix
-            const suffixDef = SUFFIXES[basename];
-            const isTypeSuffix = suffixDef && (suffixDef.kind === 'types' || suffixDef.kind === 'type' || suffixDef.kind === 'interface');
-            if (typeExemptFiles.includes(basename) || isTypeSuffix) return {};
-            return {
-              Program(node) {
-                const { exportedInterfaces, exportedTypeAliases } = collectTopLevel(node.body);
-                for (const item of exportedInterfaces)
-                  ctx.report({ node: item, messageId: 'exportedInterfaceInWrongFile' });
-                for (const item of exportedTypeAliases)
-                  ctx.report({ node: item, messageId: 'exportedTypeInWrongFile' });
-              },
-            };
-          }
-
-          const suffix = parts[parts.length - 1];
-          const def = SUFFIXES[suffix];
-          if (!def) return {};
-          return {
-            Program(node) {
-              const { classes, exportedInterfaces, exportedTypeAliases, interfaces, typeAliases } =
-                collectTopLevel(node.body);
-              const allowsInterface = def.kind === 'interface' || def.kind === 'types';
-              const allowsType = def.kind === 'type' || def.kind === 'types';
-              if (!allowsInterface) {
-                for (const item of exportedInterfaces)
-                  ctx.report({ node: item, messageId: 'exportedInterfaceInWrongFile' });
-              }
-              if (!allowsType) {
-                for (const item of exportedTypeAliases)
-                  ctx.report({ node: item, messageId: 'exportedTypeInWrongFile' });
-              }
-              if (def.kind === 'class') {
-                if (classes.length === 0)
-                  ctx.report({ node, messageId: 'missingClass', data: { suffix } });
-              } else if (def.kind === 'interface') {
-                if (interfaces.length === 0) ctx.report({ node, messageId: 'missingInterface' });
-                for (const c of classes)
-                  ctx.report({ node: c, messageId: 'classInTypeFile', data: { suffix } });
-              } else if (def.kind === 'type') {
-                if (typeAliases.length === 0) ctx.report({ node, messageId: 'missingTypeAlias' });
-                for (const c of classes)
-                  ctx.report({ node: c, messageId: 'classInTypeFile', data: { suffix } });
-              } else if (def.kind === 'types') {
-                if (interfaces.length === 0 && typeAliases.length === 0)
-                  ctx.report({ node, messageId: 'missingTypes', data: { suffix } });
-                for (const c of classes)
-                  ctx.report({ node: c, messageId: 'classInTypeFile', data: { suffix } });
-              }
-            },
-          };
-        },
-      },
-
-      'suffix-decorator': {
-        meta: {
-          type: 'suggestion',
-          schema: [],
-          messages: {
-            missingDecorator: "'*.{{suffix}}.ts' should contain a class decorated with @{{decorator}}.",
-          },
-        },
-        create(ctx) {
-          const fn = ctx.filename ?? ctx.getFilename();
-          const parts = segmentsOf(fn);
-          if (!parts || parts.length < 2 || isTest(parts)) return {};
-          const suffix = parts[parts.length - 1];
-          const expected = SUFFIXES[suffix]?.decorator;
-          if (!expected) return {};
-          return {
-            Program(node) {
-              const { classes } = collectTopLevel(node.body);
-              if (classes.length === 0) return;
-              const ok = classes.some((c) =>
-                (c.decorators ?? []).some((d) => decoratorName(d) === expected),
-              );
-              if (!ok)
-                ctx.report({
-                  node: classes[0],
-                  messageId: 'missingDecorator',
-                  data: { suffix, decorator: expected },
-                });
-            },
-          };
-        },
-      },
-
-      'test-suffix': {
-        meta: {
-          type: 'problem',
-          schema: [],
-          messages: {
-            wrongTestSuffix:
-              "Test files must use '.{{want}}.ts' (Nest's default jest testRegex only matches .spec). Rename this '.{{found}}.ts' file.",
-          },
-        },
-        create(ctx) {
-          if (testSuffix === false) return {};
-          const fn = ctx.filename ?? ctx.getFilename();
-          const parts = segmentsOf(fn);
-          if (!parts || parts.length < 2) return {};
-          return {
-            Program(node) {
-              // Only the final segment counts: flags x.test.ts, not test.service.ts.
-              const last = parts[parts.length - 1];
-              if (WRONG_TEST.has(last))
-                ctx.report({
-                  node,
-                  messageId: 'wrongTestSuffix',
-                  data: { want: wantSuffix, found: last },
-                });
-            },
-          };
-        },
-      },
-
-      'declaration-file': {
-        meta: {
-          type: 'problem',
-          schema: [],
-          messages: {
-            misplaced:
-              "Ambient declarations (`declare ...`) must live in '*.d.ts' files so type-aware linting and IDEs can discover them reliably.",
-            domainType:
-              "Do not put project domain types in '*.d.ts'. Use co-located '*.interface.ts' or '*.type.ts' files; reserve '*.d.ts' for ambient declarations.",
-          },
-        },
-        create(ctx) {
-          const fn = ctx.filename ?? ctx.getFilename();
-          if (declarationFile(fn)) {
-            const reportDomainType = (node) => {
-              ctx.report({ node, messageId: 'domainType' });
-            };
-            const checkTopLevel = (node) => {
-              const declaration =
-                unwrapDeclaration(node);
-              if (!declaration) return;
-              if (declaration.type === 'TSModuleDeclaration') return;
-              if (declaration.declare === true) return;
-              if (
-                declaration.type === 'TSInterfaceDeclaration' ||
-                declaration.type === 'TSTypeAliasDeclaration' ||
-                declaration.type === 'ClassDeclaration' ||
-                declaration.type === 'TSEnumDeclaration' ||
-                declaration.type === 'TSDeclareFunction' ||
-                declaration.type === 'VariableDeclaration'
-              ) {
-                reportDomainType(declaration);
-              }
-            };
-            return {
-              Program(node) {
-                for (const statement of node.body) checkTopLevel(statement);
-              },
-            };
-          }
-          return {
-            Program(node) {
-              visitAst(node, (current) => {
-                if (isAmbientDeclaration(current)) {
-                  ctx.report({ node: current, messageId: 'misplaced' });
-                }
-              });
-            },
-          };
-        },
-      },
-
-      'no-global-types-folder': {
-        meta: {
-          type: 'problem',
-          schema: [],
-          messages: {
-            forbidden:
-              "Do not put project types in a global 'types/' folder. Co-locate '*.interface.ts' and '*.type.ts' files with the owning module.",
-          },
-        },
-        create(ctx) {
-          const fn = ctx.filename ?? ctx.getFilename();
-          if (!inGlobalTypesFolder(fn)) return {};
-          return {
-            Program(node) {
-              ctx.report({ node, messageId: 'forbidden' });
-            },
-          };
-        },
-      },
+      'allowed-suffix': createAllowedSuffixRule({
+        allowedSuffixes,
+        kebabCase,
+        suffixDefinitions,
+      }),
+      'suffix-kind': createSuffixKindRule({
+        suffixDefinitions,
+        typeExemptFiles,
+      }),
+      'suffix-decorator': createSuffixDecoratorRule({ suffixDefinitions }),
+      'test-suffix': createTestSuffixRule({
+        testSuffix,
+        wantedTestSuffix,
+        wrongTestMarkers,
+      }),
+      'declaration-file': createDeclarationFileRule(),
+      'no-global-types-folder': createNoGlobalTypesFolderRule(),
     },
   };
-
-  const decoratorSeverity =
-    enforceDecorator === true ? 'error' : enforceDecorator === false ? 'off' : 'warn';
 
   return [
     {
@@ -414,7 +72,7 @@ export function nestNaming(options = {}) {
       rules: {
         'nest-naming/allowed-suffix': 'error',
         'nest-naming/suffix-kind': 'error',
-        'nest-naming/suffix-decorator': decoratorSeverity,
+        'nest-naming/suffix-decorator': getDecoratorSeverity(enforceDecorator),
         'nest-naming/test-suffix': 'error',
         'nest-naming/declaration-file': 'error',
         'nest-naming/no-global-types-folder': 'error',
@@ -422,6 +80,503 @@ export function nestNaming(options = {}) {
     },
   ];
 }
+
+function createAllowedSuffixRule({ allowedSuffixes, kebabCase, suffixDefinitions }) {
+  return {
+    meta: {
+      type: 'problem',
+      schema: [],
+      messages: {
+        unknownSuffix:
+          "Filename suffix '.{{suffix}}.ts' is not an allowed role suffix. Allowed: {{allowed}}.",
+        nonKebab: "Filename base '{{base}}' must be kebab-case (e.g. create-user.dto.ts).",
+      },
+    },
+    create(ctx) {
+      const parts = getFilenameParts(ctx);
+      if (isUncheckedRoleFilename(parts)) return {};
+
+      return {
+        Program(node) {
+          const suffix = getLastPart(parts);
+          if (!suffixDefinitions[suffix]) {
+            ctx.report({
+              node,
+              messageId: 'unknownSuffix',
+              data: { suffix, allowed: allowedSuffixes.join(', ') },
+            });
+            return;
+          }
+          if (kebabCase) reportNonKebabParts(ctx, node, parts);
+        },
+      };
+    },
+  };
+}
+
+function createSuffixKindRule({ suffixDefinitions, typeExemptFiles }) {
+  return {
+    meta: {
+      type: 'problem',
+      schema: [],
+      messages: {
+        missingClass:
+          "'*.{{suffix}}.ts' must export a class. Move pure types to *.interface.ts / *.type.ts.",
+        missingInterface:
+          "'*.interface.ts' must contain an interface. Use *.type.ts for union/utility types.",
+        missingTypeAlias:
+          "'*.type.ts' must contain a type alias. Use *.interface.ts for object shapes.",
+        missingTypes: "'*.{{suffix}}.ts' must contain an interface or type alias.",
+        classInTypeFile: "'*.{{suffix}}.ts' is a type-only file and must not contain a class.",
+        exportedInterfaceInWrongFile:
+          "Exported interfaces must live in '*.interface.ts' or '*.type.ts'. Keep only private narrow utility interfaces in implementation files.",
+        exportedTypeInWrongFile:
+          "Exported type aliases must live in '*.type.ts' or '*.interface.ts'. Keep only private narrow utility types in implementation files.",
+      },
+    },
+    create(ctx) {
+      const parts = getFilenameParts(ctx);
+      if (!parts || isTest(parts)) return {};
+
+      if (parts.length < 2) {
+        return createSingleSegmentTypeVisitor(ctx, parts, suffixDefinitions, typeExemptFiles);
+      }
+
+      const suffix = getLastPart(parts);
+      const suffixDefinition = suffixDefinitions[suffix];
+      if (!suffixDefinition) return {};
+
+      return {
+        Program(node) {
+          reportSuffixKind(ctx, node, suffix, suffixDefinition);
+        },
+      };
+    },
+  };
+}
+
+function createSuffixDecoratorRule({ suffixDefinitions }) {
+  return {
+    meta: {
+      type: 'suggestion',
+      schema: [],
+      messages: {
+        missingDecorator: "'*.{{suffix}}.ts' should contain a class decorated with @{{decorator}}.",
+      },
+    },
+    create(ctx) {
+      const parts = getFilenameParts(ctx);
+      if (isUncheckedRoleFilename(parts)) return {};
+
+      const suffix = getLastPart(parts);
+      const expectedDecorator = suffixDefinitions[suffix]?.decorator;
+      if (!expectedDecorator) return {};
+
+      return {
+        Program(node) {
+          const { classes } = collectTopLevel(node.body);
+          const decorated = classes.some((classNode) => hasDecorator(classNode, expectedDecorator));
+          if (classes.length > 0 && !decorated) {
+            ctx.report({
+              node: classes[0],
+              messageId: 'missingDecorator',
+              data: { suffix, decorator: expectedDecorator },
+            });
+          }
+        },
+      };
+    },
+  };
+}
+
+function createTestSuffixRule({ testSuffix, wantedTestSuffix, wrongTestMarkers }) {
+  return {
+    meta: {
+      type: 'problem',
+      schema: [],
+      messages: {
+        wrongTestSuffix:
+          "Test files must use '.{{want}}.ts' (Nest's default jest testRegex only matches .spec). Rename this '.{{found}}.ts' file.",
+      },
+    },
+    create(ctx) {
+      if (testSuffix === false) return {};
+      const parts = getFilenameParts(ctx);
+      if (!parts || parts.length < 2) return {};
+
+      return {
+        Program(node) {
+          const found = getLastPart(parts);
+          if (wrongTestMarkers.has(found)) {
+            ctx.report({
+              node,
+              messageId: 'wrongTestSuffix',
+              data: { want: wantedTestSuffix, found },
+            });
+          }
+        },
+      };
+    },
+  };
+}
+
+function createDeclarationFileRule() {
+  return {
+    meta: {
+      type: 'problem',
+      schema: [],
+      messages: {
+        misplaced:
+          "Ambient declarations (`declare ...`) must live in '*.d.ts' files so type-aware linting and IDEs can discover them reliably.",
+        domainType:
+          "Do not put project domain types in '*.d.ts'. Use co-located '*.interface.ts' or '*.type.ts' files; reserve '*.d.ts' for ambient declarations.",
+      },
+    },
+    create(ctx) {
+      if (isDeclarationFile(getFilename(ctx))) {
+        return {
+          Program(node) {
+            for (const statement of node.body) reportDomainTypeInDeclarationFile(ctx, statement);
+          },
+        };
+      }
+
+      return {
+        Program(node) {
+          visitAst(node, (current) => {
+            if (isAmbientDeclaration(current)) {
+              ctx.report({ node: current, messageId: 'misplaced' });
+            }
+          });
+        },
+      };
+    },
+  };
+}
+
+function createNoGlobalTypesFolderRule() {
+  return {
+    meta: {
+      type: 'problem',
+      schema: [],
+      messages: {
+        forbidden:
+          "Do not put project types in a global 'types/' folder. Co-locate '*.interface.ts' and '*.type.ts' files with the owning module.",
+      },
+    },
+    create(ctx) {
+      if (!inGlobalTypesFolder(getFilename(ctx))) return {};
+      return {
+        Program(node) {
+          ctx.report({ node, messageId: 'forbidden' });
+        },
+      };
+    },
+  };
+}
+
+function createSingleSegmentTypeVisitor(ctx, parts, suffixDefinitions, typeExemptFiles) {
+  const basename = parts[0];
+  const suffixDefinition = suffixDefinitions[basename];
+  const typeAllowingFile =
+    suffixDefinition && ['interface', 'type', 'types'].includes(suffixDefinition.kind);
+
+  if (typeExemptFiles.includes(basename) || typeAllowingFile) return {};
+
+  return {
+    Program(node) {
+      const { exportedInterfaces, exportedTypeAliases } = collectTopLevel(node.body);
+      reportExportedTypesInWrongFile(ctx, exportedInterfaces, exportedTypeAliases);
+    },
+  };
+}
+
+function reportSuffixKind(ctx, node, suffix, suffixDefinition) {
+  const topLevel = collectTopLevel(node.body);
+  reportExportedTypesForSuffix(ctx, suffixDefinition, topLevel);
+
+  switch (suffixDefinition.kind) {
+    case 'class': {
+      reportMissingClass(ctx, node, suffix, topLevel.classes);
+      break;
+    }
+    case 'interface': {
+      reportMissingInterface(ctx, node, topLevel.interfaces);
+      reportClassesInTypeFile(ctx, suffix, topLevel.classes);
+      break;
+    }
+    case 'type': {
+      reportMissingTypeAlias(ctx, node, topLevel.typeAliases);
+      reportClassesInTypeFile(ctx, suffix, topLevel.classes);
+      break;
+    }
+    case 'types': {
+      reportMissingTypes(ctx, node, suffix, topLevel.interfaces, topLevel.typeAliases);
+      reportClassesInTypeFile(ctx, suffix, topLevel.classes);
+      break;
+    }
+    case 'any': {
+      break;
+    }
+    // No default
+  }
+}
+
+function reportExportedTypesForSuffix(ctx, suffixDefinition, topLevel) {
+  const allowsInterface =
+    suffixDefinition.kind === 'interface' || suffixDefinition.kind === 'types';
+  const allowsType = suffixDefinition.kind === 'type' || suffixDefinition.kind === 'types';
+
+  if (!allowsInterface) {
+    for (const item of topLevel.exportedInterfaces) {
+      ctx.report({ node: item, messageId: 'exportedInterfaceInWrongFile' });
+    }
+  }
+  if (!allowsType) {
+    for (const item of topLevel.exportedTypeAliases) {
+      ctx.report({ node: item, messageId: 'exportedTypeInWrongFile' });
+    }
+  }
+}
+
+function reportExportedTypesInWrongFile(ctx, exportedInterfaces, exportedTypeAliases) {
+  for (const item of exportedInterfaces) {
+    ctx.report({ node: item, messageId: 'exportedInterfaceInWrongFile' });
+  }
+  for (const item of exportedTypeAliases) {
+    ctx.report({ node: item, messageId: 'exportedTypeInWrongFile' });
+  }
+}
+
+function reportMissingClass(ctx, node, suffix, classes) {
+  if (classes.length === 0) {
+    ctx.report({ node, messageId: 'missingClass', data: { suffix } });
+  }
+}
+
+function reportMissingInterface(ctx, node, interfaces) {
+  if (interfaces.length === 0) {
+    ctx.report({ node, messageId: 'missingInterface' });
+  }
+}
+
+function reportMissingTypeAlias(ctx, node, typeAliases) {
+  if (typeAliases.length === 0) {
+    ctx.report({ node, messageId: 'missingTypeAlias' });
+  }
+}
+
+function reportMissingTypes(ctx, node, suffix, interfaces, typeAliases) {
+  if (interfaces.length === 0 && typeAliases.length === 0) {
+    ctx.report({ node, messageId: 'missingTypes', data: { suffix } });
+  }
+}
+
+function reportClassesInTypeFile(ctx, suffix, classes) {
+  for (const classNode of classes) {
+    ctx.report({ node: classNode, messageId: 'classInTypeFile', data: { suffix } });
+  }
+}
+
+function reportNonKebabParts(ctx, node, parts) {
+  for (const segment of parts.slice(0, -1)) {
+    if (!KEBAB.test(segment)) {
+      ctx.report({
+        node,
+        messageId: 'nonKebab',
+        data: { base: parts.slice(0, -1).join('.') },
+      });
+      return;
+    }
+  }
+}
+
+function reportDomainTypeInDeclarationFile(ctx, node) {
+  const declaration = unwrapDeclaration(node);
+  if (!declaration || declaration.type === 'TSModuleDeclaration' || declaration.declare === true) {
+    return;
+  }
+  if (isProjectDomainDeclaration(declaration)) {
+    ctx.report({ node: declaration, messageId: 'domainType' });
+  }
+}
+
+function isProjectDomainDeclaration(declaration) {
+  return [
+    'TSInterfaceDeclaration',
+    'TSTypeAliasDeclaration',
+    'ClassDeclaration',
+    'TSEnumDeclaration',
+    'TSDeclareFunction',
+    'VariableDeclaration',
+  ].includes(declaration.type);
+}
+
+function collectTopLevel(body) {
+  const exportedNames = collectExportedNames(body);
+  const out = {
+    classes: [],
+    exportedInterfaces: [],
+    exportedTypeAliases: [],
+    interfaces: [],
+    typeAliases: [],
+  };
+
+  for (const raw of body) {
+    collectTopLevelDeclaration(out, raw, exportedNames);
+  }
+  return out;
+}
+
+function collectExportedNames(body) {
+  const exportedNames = new Set();
+  for (const raw of body) {
+    if (raw.type === 'ExportNamedDeclaration' && !raw.declaration) {
+      for (const specifier of raw.specifiers ?? []) {
+        const local = specifier.local?.name;
+        if (local) exportedNames.add(local);
+      }
+    }
+  }
+  return exportedNames;
+}
+
+function collectTopLevelDeclaration(out, raw, exportedNames) {
+  const node = unwrapDeclaration(raw);
+  const exported = isExportedDeclaration(raw) || exportedNames.has(node.id?.name);
+
+  switch (node.type) {
+    case 'ClassDeclaration': {
+      out.classes.push(node);
+      break;
+    }
+    case 'TSInterfaceDeclaration': {
+      out.interfaces.push(node);
+      if (exported) out.exportedInterfaces.push(node);
+      break;
+    }
+    case 'TSTypeAliasDeclaration': {
+      out.typeAliases.push(node);
+      if (exported) out.exportedTypeAliases.push(node);
+      break;
+    }
+    // No default
+  }
+}
+
+function visitAst(node, visitor, seen = new WeakSet()) {
+  if (!node || typeof node !== 'object' || seen.has(node)) return;
+  seen.add(node);
+  if (typeof node.type === 'string') visitor(node);
+
+  for (const [key, value] of Object.entries(node)) {
+    if (SKIPPED_AST_KEYS.has(key)) continue;
+    visitAstValue(value, visitor, seen);
+  }
+}
+
+function visitAstValue(value, visitor, seen) {
+  if (Array.isArray(value)) {
+    for (const item of value) visitAst(item, visitor, seen);
+    return;
+  }
+  if (value && typeof value === 'object' && typeof value.type === 'string') {
+    visitAst(value, visitor, seen);
+  }
+}
+
+function hasDecorator(classNode, expectedDecorator) {
+  return (classNode.decorators ?? []).some(
+    (decorator) => getDecoratorName(decorator) === expectedDecorator,
+  );
+}
+
+function getDecoratorName(decorator) {
+  const expression = decorator.expression;
+  if (expression.type === 'CallExpression' && expression.callee.type === 'Identifier') {
+    return expression.callee.name;
+  }
+  if (expression.type === 'Identifier') {
+    return expression.name;
+  }
+  return null;
+}
+
+function unwrapDeclaration(node) {
+  return (node.type === 'ExportNamedDeclaration' || node.type === 'ExportDefaultDeclaration') &&
+    node.declaration
+    ? node.declaration
+    : node;
+}
+
+function isExportedDeclaration(node) {
+  return node.type === 'ExportNamedDeclaration' || node.type === 'ExportDefaultDeclaration';
+}
+
+function isAmbientDeclaration(node) {
+  return (
+    (node.type === 'TSModuleDeclaration' && node.id.type === 'Literal') || node.declare === true
+  );
+}
+
+function getFilename(ctx) {
+  return ctx.filename ?? ctx.getFilename();
+}
+
+function getFilenameParts(ctx) {
+  return getSegments(getFilename(ctx));
+}
+
+function getSegments(filename) {
+  const base = String(filename).replaceAll('\\', '/').split('/').pop() || '';
+  if (!base.endsWith('.ts') || base.endsWith('.d.ts')) return null;
+  return base.slice(0, -3).split('.');
+}
+
+function isDeclarationFile(filename) {
+  const base = String(filename).replaceAll('\\', '/').split('/').pop() || '';
+  return base.endsWith('.d.ts');
+}
+
+function inGlobalTypesFolder(filename) {
+  const normalized = String(filename).replaceAll('\\', '/');
+  const normalizedWorkingDirectory = process.cwd().replaceAll('\\', '/');
+  return (
+    normalized.startsWith('types/') ||
+    normalized.startsWith(`${normalizedWorkingDirectory}/types/`) ||
+    /(^|\/)src\/types\//.test(normalized)
+  );
+}
+
+function isUncheckedRoleFilename(parts) {
+  return !parts || parts.length < 2 || isTest(parts);
+}
+
+function isTest(parts) {
+  return TEST_MARKERS.has(getLastPart(parts));
+}
+
+function getLastPart(parts) {
+  return parts.at(-1);
+}
+
+function getWrongTestMarkers(testSuffix) {
+  if (testSuffix === 'spec') return new Set(['test', 'tests', 'e2e-test']);
+  if (testSuffix === 'test') return new Set(['spec', 'e2e-spec']);
+  return new Set();
+}
+
+function getWantedTestSuffix(testSuffix) {
+  return testSuffix === 'test' ? 'test' : 'spec';
+}
+
+function getDecoratorSeverity(enforceDecorator) {
+  if (enforceDecorator === true) return 'error';
+  if (enforceDecorator === false) return 'off';
+  return 'warn';
+}
+
+const SKIPPED_AST_KEYS = new Set(['parent', 'loc', 'range', 'tokens', 'comments']);
 
 const DEFAULT_SUFFIXES = {
   // class + framework decorator enforced

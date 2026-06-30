@@ -43,7 +43,16 @@ export function defineConfig(options = {}) {
     // 1. Global ignores (standalone object — ESLint treats this specially)
     { ignores: [...DEFAULT_IGNORES, ...ignores] },
 
-    // 2. Global languageOptions
+    // 2. Linter self-protection: disable comments are an escape hatch, not a guardrail.
+    {
+      linterOptions: {
+        noInlineConfig: true,
+        reportUnusedDisableDirectives: 'error',
+        reportUnusedInlineConfigs: 'error',
+      },
+    },
+
+    // 3. Global languageOptions
     {
       languageOptions: {
         ecmaVersion: 'latest',
@@ -55,29 +64,37 @@ export function defineConfig(options = {}) {
       },
     },
 
-    // 3. Base (eslint recommended)
+    // 4. Base (eslint recommended)
     ...base(),
 
-    // 4. TypeScript (strictTypeChecked + AI guardrails)
+    // 5. TypeScript (strictTypeChecked + AI guardrails)
     ...typescript({ tsconfigRootDir, disableTypeChecked }),
 
-    // 5. Import organization
+    // 6. Import organization
     ...importX({ maxCycleDepth }),
 
-    // 6. Modern JS enforcement
+    // 7. Modern JS enforcement
     ...unicorn({ abbreviations, abbreviationIgnore }),
 
-    // 7. Complexity + bug detection
+    // 8. Complexity + bug detection
     ...sonarjs(),
 
-    // 8. Node.js best practices
+    // 9. Node.js best practices
     ...node({ testFiles }),
 
-    // 9. Prettier (MUST be last — disables formatting rules)
+    // 10. Prettier (MUST be last before local semantic overrides)
     ...prettier(),
+
+    // 11. CommonJS files should parse with CommonJS semantics even in ESM-first projects.
+    {
+      files: ['**/*.{cjs,cts}'],
+      languageOptions: {
+        sourceType: 'commonjs',
+      },
+    },
   ];
 
-  // 10. User rule overrides (absolute last)
+  // 12. User rule overrides (absolute last)
   if (Object.keys(overrides).length > 0) {
     configs.push({ rules: overrides });
   }

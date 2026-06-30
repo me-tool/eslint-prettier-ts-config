@@ -2,20 +2,20 @@
 
 Opinionated ESLint v9 flat config + Prettier for TypeScript projects.
 
-Designed as **AI coding guardrails** — strict type checks, complexity detection, modern JS enforcement, auto-fixable rules. One package, zero config hassle.
+Designed as **AI coding guardrails** — strict type checks, complexity detection, modern JS enforcement, and no inline escape hatches. One package, zero config hassle.
 
 ## Included Plugins
 
-| Plugin | Purpose |
-|--------|---------|
-| `typescript-eslint` strictTypeChecked | Strict TS rules + type-aware analysis |
-| `eslint-plugin-unicorn` | Modern JS idioms enforcement |
-| `eslint-plugin-sonarjs` | Code smell + bug detection |
-| `eslint-plugin-import-x` | Import organization + TS resolver |
-| `eslint-plugin-n` | Node.js best practices |
-| `eslint-config-prettier` | Disable formatting rules (let Prettier handle it) |
-| `eslint-import-resolver-typescript` | TypeScript-aware import resolution for import-x |
-| `@cspell/eslint-plugin` | Spell checking for identifiers, comments, and JSX text (optional) |
+| Plugin                                | Purpose                                                           |
+| ------------------------------------- | ----------------------------------------------------------------- |
+| `typescript-eslint` strictTypeChecked | Strict TS rules + type-aware analysis                             |
+| `eslint-plugin-unicorn`               | Modern JS idioms enforcement                                      |
+| `eslint-plugin-sonarjs`               | Code smell + bug detection                                        |
+| `eslint-plugin-import-x`              | Import organization + TS resolver                                 |
+| `eslint-plugin-n`                     | Node.js best practices                                            |
+| `eslint-config-prettier`              | Disable formatting rules (let Prettier handle it)                 |
+| `eslint-import-resolver-typescript`   | TypeScript-aware import resolution for import-x                   |
+| `@cspell/eslint-plugin`               | Spell checking for identifiers, comments, and JSX text (optional) |
 
 ## Requirements
 
@@ -85,10 +85,7 @@ export default [...defineConfig(), ...cspell()];
 The CSpell config includes a built-in word list for common tech ecosystem terms (AI/DB/tooling). To add project-specific words, pass them via the `words` option:
 
 ```js
-export default [
-  ...defineConfig(),
-  ...cspell({ words: ['myapp', 'myterm'] }),
-];
+export default [...defineConfig(), ...cspell({ words: ['myapp', 'myterm'] })];
 ```
 
 Alternatively, create a `cspell.json` at project root — CSpell auto-discovers it.
@@ -115,11 +112,11 @@ export default [
 ];
 ```
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `layers[].alias` | `string` | Path alias to restrict. Blocks `${alias}/*/**` (deep imports). |
-| `layers[].message` | `string?` | Custom error message. Defaults to `Use barrel: ${alias}`. |
-| `enforcedIn` | `string[]` | Globs for files where the rule applies. Typically the consuming layers, not the layer defining the barrel. |
+| Option             | Type       | Description                                                                                                |
+| ------------------ | ---------- | ---------------------------------------------------------------------------------------------------------- |
+| `layers[].alias`   | `string`   | Path alias to restrict. Blocks `${alias}/*/**` (deep imports).                                             |
+| `layers[].message` | `string?`  | Custom error message. Defaults to `Use barrel: ${alias}`.                                                  |
+| `enforcedIn`       | `string[]` | Globs for files where the rule applies. Typically the consuming layers, not the layer defining the barrel. |
 
 The rule only applies to files matching `enforcedIn` — internal imports within the same layer are not restricted.
 
@@ -148,61 +145,61 @@ export default [
 
 Rules:
 
-| Rule | Catches |
-|------|---------|
-| `nest-naming/allowed-suffix` | Filename suffix not in the role whitelist (e.g. `*.widget.ts`); non-kebab base (`CreateUser.dto.ts`) |
-| `nest-naming/suffix-kind` | Content doesn't match suffix: `*.dto.ts` written as `interface`/`type`; a class inside `*.interface.ts` / `*.type.ts`; exported interfaces/types left in the wrong role file |
-| `nest-naming/suffix-decorator` | A `*.controller.ts` / `*.service.ts` / `*.module.ts` / `*.guard.ts` class missing its `@Controller` / `@Injectable` / `@Module` decorator (severity = `enforceDecorator`, default `warn`) |
-| `nest-naming/test-suffix` | Wrong test convention: `*.test.ts` when Nest's default jest `testRegex` only matches `*.spec.ts` (silent skip) |
-| `nest-naming/declaration-file` | Ambient `declare ...` declarations hidden in normal implementation files, or project domain types placed in `*.d.ts` |
-| `nest-naming/no-global-types-folder` | Project types placed in a global `types/` or `src/types/` folder instead of being co-located with the owning module |
+| Rule                                 | Catches                                                                                                                                                                                   |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `nest-naming/allowed-suffix`         | Filename suffix not in the role whitelist (e.g. `*.widget.ts`); non-kebab base (`CreateUser.dto.ts`)                                                                                      |
+| `nest-naming/suffix-kind`            | Content doesn't match suffix: `*.dto.ts` written as `interface`/`type`; a class inside `*.interface.ts` / `*.type.ts`; exported interfaces/types left in the wrong role file              |
+| `nest-naming/suffix-decorator`       | A `*.controller.ts` / `*.service.ts` / `*.module.ts` / `*.guard.ts` class missing its `@Controller` / `@Injectable` / `@Module` decorator (severity = `enforceDecorator`, default `warn`) |
+| `nest-naming/test-suffix`            | Wrong test convention: `*.test.ts` when Nest's default jest `testRegex` only matches `*.spec.ts` (silent skip)                                                                            |
+| `nest-naming/declaration-file`       | Ambient `declare ...` declarations hidden in normal implementation files, or project domain types placed in `*.d.ts`                                                                      |
+| `nest-naming/no-global-types-folder` | Project types placed in a global `types/` or `src/types/` folder instead of being co-located with the owning module                                                                       |
 
 Suffixes are graded by runtime shape. `class` files emit JS and participate in DI/decorators/new; `interface`/`type` files disappear after compilation; `any` files are allowed because they may be functions, constants, or mixed framework forms.
 
 Class suffixes with enforced decorators:
 
-| Suffix | Role | Decorator |
-|--------|------|-----------|
-| `controller` | HTTP/RPC entrypoint; orchestration, not business logic | `@Controller` |
-| `service` | Injectable application/domain logic | `@Injectable` |
-| `module` | DI organization unit | `@Module` |
-| `guard` | `CanActivate` access control | `@Injectable` |
-| `pipe` | `PipeTransform` validation/transformation | `@Injectable` |
-| `interceptor` | `NestInterceptor` around advice | `@Injectable` |
-| `filter` | `ExceptionFilter` handling | `@Catch` |
-| `resolver` | GraphQL resolver | `@Resolver` |
-| `gateway` | WebSocket gateway | `@WebSocketGateway` |
+| Suffix        | Role                                                   | Decorator           |
+| ------------- | ------------------------------------------------------ | ------------------- |
+| `controller`  | HTTP/RPC entrypoint; orchestration, not business logic | `@Controller`       |
+| `service`     | Injectable application/domain logic                    | `@Injectable`       |
+| `module`      | DI organization unit                                   | `@Module`           |
+| `guard`       | `CanActivate` access control                           | `@Injectable`       |
+| `pipe`        | `PipeTransform` validation/transformation              | `@Injectable`       |
+| `interceptor` | `NestInterceptor` around advice                        | `@Injectable`       |
+| `filter`      | `ExceptionFilter` handling                             | `@Catch`            |
+| `resolver`    | GraphQL resolver                                       | `@Resolver`         |
+| `gateway`     | WebSocket gateway                                      | `@WebSocketGateway` |
 
 Class suffixes without fixed decorator enforcement:
 
-| Suffix | Role |
-|--------|------|
-| `dto` | Boundary data contract with runtime validation; DTOs must be classes |
-| `entity` | Persistence mapping / domain entity |
-| `repository` | Custom repository |
-| `strategy` | Passport strategy |
-| `subscriber` | TypeORM event subscriber |
+| Suffix       | Role                                                                 |
+| ------------ | -------------------------------------------------------------------- |
+| `dto`        | Boundary data contract with runtime validation; DTOs must be classes |
+| `entity`     | Persistence mapping / domain entity                                  |
+| `repository` | Custom repository                                                    |
+| `strategy`   | Passport strategy                                                    |
+| `subscriber` | TypeORM event subscriber                                             |
 
 Compile-time suffixes:
 
-| Suffix | Must contain | Forbidden |
-|--------|--------------|-----------|
-| `interface` | `interface` declaration | class |
-| `type` | `type` alias | class |
+| Suffix      | Must contain            | Forbidden |
+| ----------- | ----------------------- | --------- |
+| `interface` | `interface` declaration | class     |
+| `type`      | `type` alias            | class     |
 
 Content-free suffixes:
 
-| Suffixes | Typical content |
-|----------|-----------------|
-| `decorator` | Custom decorator functions / factories |
-| `middleware` | Function middleware or injectable class |
-| `constant` / `constants` | Exported constants |
-| `enum` | Enum declarations |
-| `config` | `registerAs()` functions or config objects |
-| `schema` / `model` | Mongoose / GraphQL mixed forms |
-| `validator` | `@ValidatorConstraint` class or validation functions |
-| `util` / `utils` / `helper` / `helpers` | Pure helper functions |
-| `mock` / `fixture` | Test helpers |
+| Suffixes                                | Typical content                                      |
+| --------------------------------------- | ---------------------------------------------------- |
+| `decorator`                             | Custom decorator functions / factories               |
+| `middleware`                            | Function middleware or injectable class              |
+| `constant` / `constants`                | Exported constants                                   |
+| `enum`                                  | Enum declarations                                    |
+| `config`                                | `registerAs()` functions or config objects           |
+| `schema` / `model`                      | Mongoose / GraphQL mixed forms                       |
+| `validator`                             | `@ValidatorConstraint` class or validation functions |
+| `util` / `utils` / `helper` / `helpers` | Pure helper functions                                |
+| `mock` / `fixture`                      | Test helpers                                         |
 
 Content binding decisions:
 
@@ -216,20 +213,20 @@ Content binding decisions:
 
 Test suffixes:
 
-| Type | Suffix | Reason |
-|------|--------|--------|
-| Unit test | `*.spec.ts` | Matches Nest's default Jest `testRegex` |
-| E2E test | `*.e2e-spec.ts` | Matches Nest's e2e Jest config |
+| Type      | Suffix                     | Reason                                   |
+| --------- | -------------------------- | ---------------------------------------- |
+| Unit test | `*.spec.ts`                | Matches Nest's default Jest `testRegex`  |
+| E2E test  | `*.e2e-spec.ts`            | Matches Nest's e2e Jest config           |
 | Forbidden | `*.test.ts` / `*.tests.ts` | Can be silently skipped in Nest projects |
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `files` | `string[]` | `['src/**/*.ts']` | Globs the rules apply to. |
-| `ignores` | `string[]` | `[]` | Globs to exclude. |
-| `suffixes` | `Record<string, { kind; decorator? }>` | — | Merge on top of the default suffix table (add project suffixes / relax decorators). |
-| `testSuffix` | `'spec' \| 'test' \| false` | `'spec'` | Which single test convention to enforce; `false` disables. |
-| `kebabCase` | `boolean` | `true` | Require kebab-case base names. |
-| `enforceDecorator` | `boolean \| 'warn'` | `'warn'` | `true` => error, `false` => off. Start at `warn` to surface noise from abstract bases before promoting to error. |
+| Option             | Type                                   | Default           | Description                                                                                                      |
+| ------------------ | -------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `files`            | `string[]`                             | `['src/**/*.ts']` | Globs the rules apply to.                                                                                        |
+| `ignores`          | `string[]`                             | `[]`              | Globs to exclude.                                                                                                |
+| `suffixes`         | `Record<string, { kind; decorator? }>` | —                 | Merge on top of the default suffix table (add project suffixes / relax decorators).                              |
+| `testSuffix`       | `'spec' \| 'test' \| false`            | `'spec'`          | Which single test convention to enforce; `false` disables.                                                       |
+| `kebabCase`        | `boolean`                              | `true`            | Require kebab-case base names.                                                                                   |
+| `enforceDecorator` | `boolean \| 'warn'`                    | `'warn'`          | `true` => error, `false` => off. Start at `warn` to surface noise from abstract bases before promoting to error. |
 
 > Test files (`*.spec.ts`, `*.e2e-spec.ts`) and suffix-less files (`index.ts`, `main.ts`) are exempt from `allowed-suffix` and `suffix-kind`. Identifier naming is handled separately by the base config: classes, interfaces, type aliases, enums, enum members, and type parameters use `PascalCase`; interfaces cannot use Hungarian `I` prefixes.
 
@@ -254,9 +251,9 @@ export default defineConfig({
   // Additional file globs where devDependency imports are allowed (merged with defaults)
   testFiles: ['**/__tests__/**', '**/e2e/**'],
 
-  // Rule overrides (applied last)
+  // Rule overrides (applied last). Keep these for explicit project exceptions,
+  // not for lowering the guardrail baseline.
   overrides: {
-    'no-console': 'warn',
     'sonarjs/cognitive-complexity': ['error', 20],
   },
 
@@ -272,7 +269,11 @@ These glob patterns are always ignored: `dist/**`, `build/**`, `output/**`, `nod
 
 ### JS/CJS File Handling
 
-JS files (`*.js`, `*.mjs`, `*.cjs`) automatically have type-checked rules and return-type requirements disabled. This means the config works in mixed TS/JS projects out of the box.
+JS files (`*.js`, `*.mjs`, `*.cjs`) automatically have type-checked rules and return-type requirements disabled. CommonJS files (`*.cjs`, `*.cts`) parse with `sourceType: 'commonjs'`, so the config works in mixed TS/JS projects out of the box.
+
+### Inline Config Policy
+
+Inline ESLint config comments are disabled via `linterOptions.noInlineConfig`, and `ai-guardrails/no-inline-eslint-config` reports ESLint directive comments as errors. AI-generated code should not be able to silence guardrails with `eslint-disable` comments. Use `ignores` for generated output and explicit top-level `overrides` for rare project-level exceptions.
 
 ## Prettier Config
 
@@ -299,19 +300,24 @@ The bundled Prettier config uses these settings:
 
 Key rules that catch common AI-generated code issues:
 
-| Rule | AI Problem | Effect |
-|------|-----------|--------|
-| `@typescript-eslint/no-floating-promises` | AI writes `someAsync()` without `await` | Forces promise handling |
-| `@typescript-eslint/no-misused-promises` | AI passes async to non-promise-expecting APIs | Catches async misuse |
-| `@typescript-eslint/explicit-function-return-type` | AI omits return types | Forces explicit declarations |
-| `@typescript-eslint/no-explicit-any` | AI falls back to `any` | Enforces proper typing |
-| `@typescript-eslint/consistent-type-imports` | AI mixes value/type imports | Forces `import type {}` |
-| `@typescript-eslint/prefer-nullish-coalescing` | AI writes `x \|\| fallback` instead of `x ?? fallback` | Prevents falsy-value bugs |
-| `@typescript-eslint/prefer-optional-chain` | AI writes manual `if (a && a.b)` chains | Enforces `a?.b` |
-| `sonarjs/cognitive-complexity` (<=15) | AI writes deeply nested logic | Limits function complexity |
-| `unicorn/prefer-node-protocol` | AI writes `import fs from 'fs'` | Forces `node:fs` prefix |
-| `unicorn/no-array-for-each` | AI uses `.forEach()` | Enforces `for...of` |
-| `prefer-const` / `no-var` | AI uses `let` or `var` unnecessarily | Forces immutable bindings |
+| Rule                                               | AI Problem                                             | Effect                                         |
+| -------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------- |
+| `@typescript-eslint/no-floating-promises`          | AI writes `someAsync()` without `await`                | Forces promise handling                        |
+| `@typescript-eslint/no-misused-promises`           | AI passes async to non-promise-expecting APIs          | Catches async misuse                           |
+| `@typescript-eslint/explicit-function-return-type` | AI omits return types                                  | Forces explicit declarations                   |
+| `@typescript-eslint/no-explicit-any`               | AI falls back to `any`                                 | Enforces proper typing                         |
+| `@typescript-eslint/consistent-type-imports`       | AI mixes value/type imports                            | Forces `import type {}`                        |
+| `@typescript-eslint/prefer-nullish-coalescing`     | AI writes `x \|\| fallback` instead of `x ?? fallback` | Prevents falsy-value bugs                      |
+| `@typescript-eslint/prefer-optional-chain`         | AI writes manual `if (a && a.b)` chains                | Enforces `a?.b`                                |
+| `@typescript-eslint/strict-boolean-expressions`    | AI relies on truthy/falsy coercion                     | Forces explicit boolean intent                 |
+| `@typescript-eslint/switch-exhaustiveness-check`   | AI misses union cases                                  | Forces exhaustive discriminated-union handling |
+| `ai-guardrails/no-inline-eslint-config`            | AI tries to silence lint with comments                 | Forces exceptions into reviewed config         |
+| `sonarjs/cognitive-complexity` (<=15)              | AI writes deeply nested logic                          | Limits function complexity                     |
+| `unicorn/prefer-node-protocol`                     | AI writes `import fs from 'fs'`                        | Forces `node:fs` prefix                        |
+| `unicorn/no-array-for-each`                        | AI uses `.forEach()`                                   | Enforces `for...of`                            |
+| `curly` / `eqeqeq`                                 | AI writes terse or coercive conditionals               | Forces explicit blocks and equality            |
+| `no-console` / `no-debugger`                       | AI leaves ad-hoc diagnostics in production paths       | Blocks stray debugging artifacts               |
+| `prefer-const` / `no-var`                          | AI uses `let` or `var` unnecessarily                   | Forces immutable bindings                      |
 
 ### Notable Unicorn Customizations
 
@@ -326,6 +332,8 @@ Key rules that catch common AI-generated code issues:
 
 - **`no-extraneous-class`**: Allows classes with decorators — required by NestJS (`@Module`), Angular (`@NgModule`), and similar frameworks
 - **`restrict-template-expressions`**: Allows `number` in template literals — safe and ubiquitous in practice
+- **`strict-boolean-expressions`**: Disallows truthy/falsy shortcuts for strings, numbers, nullable values, and objects; write the actual condition
+- **`switch-exhaustiveness-check`**: Requires discriminated-union switches to handle every case; redundant `default` cases do not hide missing variants
 - **`naming-convention`**: Enforces `PascalCase` for interfaces and type aliases; forbids Hungarian notation prefixes (`IUser` → `User`, `TProps` → `Props`)
 
 ### Notable Node.js Plugin Customizations
@@ -347,7 +355,7 @@ Key rules that catch common AI-generated code issues:
 
 ## Environment
 
-Targets modern Node.js runtimes (`^20.19.0 || ^22.13.0 || >=24`) with `ecmaVersion: 'latest'` and Node + ES2025 globals by default. Uses `eslint-plugin-n`'s `flat/recommended-module` preset (assumes `"type": "module"` in your project).
+Targets modern Node.js runtimes (`^20.19.0 || ^22.13.0 || >=24`) with `ecmaVersion: 'latest'` and Node + ES2025 globals by default. Uses `eslint-plugin-n`'s `flat/recommended-module` preset (ESM-first), with `*.cjs` and `*.cts` parsed as CommonJS.
 
 ## VSCode Setup
 
@@ -358,8 +366,8 @@ Targets modern Node.js runtimes (`^20.19.0 || ^22.13.0 || >=24`) with `ecmaVersi
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit"
-  }
+    "source.fixAll.eslint": "explicit",
+  },
 }
 ```
 
@@ -370,6 +378,7 @@ Recommended extensions: [ESLint](https://marketplace.visualstudio.com/items?item
 v2 is a breaking change:
 
 1. **Update the package**
+
    ```bash
    pnpm add -D @me-tool/eslint-prettier-ts-config@2 eslint@latest
    pnpm remove @me-tool/eslint-prettier-config  # remove old base
@@ -378,6 +387,7 @@ v2 is a breaking change:
 2. **Replace config file**: Delete `.eslintrc.js` / `.eslintrc.json`, create `eslint.config.mjs` as shown in Quick Start.
 
 3. **Update Prettier**:
+
    ```diff
    - "prettier": "@me-tool/eslint-prettier-ts-config/.prettierrc.js"
    + "prettier": "@me-tool/eslint-prettier-ts-config/prettier"
@@ -397,6 +407,7 @@ v2 is a breaking change:
 ### New rules in v2
 
 v2 adds significantly more rules than v1. Expect new lint errors on existing code, particularly from:
+
 - `eslint-plugin-unicorn` (modern JS patterns)
 - `eslint-plugin-sonarjs` (cognitive complexity)
 - `@typescript-eslint` strict type checks (`no-floating-promises`, `explicit-function-return-type`, etc.)

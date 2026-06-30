@@ -1,13 +1,13 @@
-import tseslint from 'typescript-eslint';
+import { configs } from 'typescript-eslint';
 
 export function typescript({ tsconfigRootDir, disableTypeChecked = false } = {}) {
   if (disableTypeChecked) {
-    return [...tseslint.configs.strict, ...tseslint.configs.stylistic];
+    return [...configs.strict, ...configs.stylistic];
   }
 
   return [
-    ...tseslint.configs.strictTypeChecked,
-    ...tseslint.configs.stylisticTypeChecked,
+    ...configs.strictTypeChecked,
+    ...configs.stylisticTypeChecked,
     {
       languageOptions: {
         parserOptions: {
@@ -26,14 +26,29 @@ export function typescript({ tsconfigRootDir, disableTypeChecked = false } = {})
         '@typescript-eslint/no-misused-promises': 'error',
         '@typescript-eslint/prefer-nullish-coalescing': 'error',
         '@typescript-eslint/prefer-optional-chain': 'error',
-        '@typescript-eslint/no-extraneous-class': [
+        '@typescript-eslint/strict-boolean-expressions': [
           'error',
-          { allowWithDecorator: true },
+          {
+            allowAny: false,
+            allowNullableBoolean: false,
+            allowNullableEnum: false,
+            allowNullableNumber: false,
+            allowNullableObject: false,
+            allowNullableString: false,
+            allowNumber: false,
+            allowString: false,
+          },
         ],
-        '@typescript-eslint/restrict-template-expressions': [
+        '@typescript-eslint/switch-exhaustiveness-check': [
           'error',
-          { allowNumber: true },
+          {
+            allowDefaultCaseForExhaustiveSwitch: false,
+            considerDefaultExhaustiveForUnions: false,
+            requireDefaultForNonUnion: false,
+          },
         ],
+        '@typescript-eslint/no-extraneous-class': ['error', { allowWithDecorator: true }],
+        '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
         '@typescript-eslint/naming-convention': [
           'error',
           {
@@ -60,9 +75,9 @@ export function typescript({ tsconfigRootDir, disableTypeChecked = false } = {})
     // JS/CJS files: disable type-checked rules
     {
       files: ['**/*.{js,mjs,cjs}'],
-      ...tseslint.configs.disableTypeChecked,
+      ...configs.disableTypeChecked,
       rules: {
-        ...tseslint.configs.disableTypeChecked.rules,
+        ...configs.disableTypeChecked.rules,
         '@typescript-eslint/explicit-function-return-type': 'off',
         '@typescript-eslint/explicit-module-boundary-types': 'off',
       },

@@ -1,8 +1,8 @@
-import pluginSonar from 'eslint-plugin-sonarjs';
+import { configs } from 'eslint-plugin-sonarjs';
 
 export function sonarjs() {
   return [
-    pluginSonar.configs.recommended,
+    configs.recommended,
     {
       rules: {
         'sonarjs/cognitive-complexity': ['error', 15],
