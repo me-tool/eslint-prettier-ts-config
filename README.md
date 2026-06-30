@@ -1,4 +1,4 @@
-# @me-tool/eslint-prettier-ts-config
+# @cognirail/eslint-config
 
 Opinionated ESLint flat config + Prettier for TypeScript projects.
 
@@ -29,13 +29,13 @@ Designed as **AI coding guardrails** — strict type checks, complexity detectio
 ### 1. Install
 
 ```bash
-pnpm add -D @me-tool/eslint-prettier-ts-config eslint typescript prettier
+pnpm add -D @cognirail/eslint-config eslint typescript prettier
 ```
 
 ### 2. ESLint — create `eslint.config.mjs`
 
 ```js
-import { defineConfig } from '@me-tool/eslint-prettier-ts-config';
+import { defineConfig } from '@cognirail/eslint-config';
 
 export default defineConfig();
 ```
@@ -46,7 +46,7 @@ export default defineConfig();
 
 ```json
 {
-  "prettier": "@me-tool/eslint-prettier-ts-config/prettier"
+  "prettier": "@cognirail/eslint-config/prettier"
 }
 ```
 
@@ -76,8 +76,8 @@ pnpm add -D @cspell/eslint-plugin
 
 ```js
 // eslint.config.mjs
-import { defineConfig } from '@me-tool/eslint-prettier-ts-config';
-import { cspell } from '@me-tool/eslint-prettier-ts-config/cspell';
+import { defineConfig } from '@cognirail/eslint-config';
+import { cspell } from '@cognirail/eslint-config/cspell';
 
 export default [...defineConfig(), ...cspell()];
 ```
@@ -96,8 +96,8 @@ Enforce barrel imports at architecture boundaries — prevent deep path imports 
 
 ```js
 // eslint.config.mjs
-import { defineConfig } from '@me-tool/eslint-prettier-ts-config';
-import { barrel } from '@me-tool/eslint-prettier-ts-config/barrel';
+import { defineConfig } from '@cognirail/eslint-config';
+import { barrel } from '@cognirail/eslint-config/barrel';
 
 export default [
   ...defineConfig({ tsconfigRootDir: import.meta.dirname }),
@@ -130,7 +130,7 @@ Use `./agent` when the project contains agent runtime/tool/prompt/eval code and 
 
 ```js
 // eslint.config.mjs
-import { defineAgentConfig } from '@me-tool/eslint-prettier-ts-config/agent';
+import { defineAgentConfig } from '@cognirail/eslint-config/agent';
 
 export default defineAgentConfig({
   tsconfigRootDir: import.meta.dirname,
@@ -165,8 +165,8 @@ Default agent role suffixes:
 Use `./role-naming` directly for non-Nest, non-agent projects with their own role suffix table.
 
 ```js
-import { defineConfig } from '@me-tool/eslint-prettier-ts-config';
-import { roleNaming } from '@me-tool/eslint-prettier-ts-config/role-naming';
+import { defineConfig } from '@cognirail/eslint-config';
+import { roleNaming } from '@cognirail/eslint-config/role-naming';
 
 export default [
   ...defineConfig({ tsconfigRootDir: import.meta.dirname }),
@@ -194,8 +194,8 @@ The role suffix describes the dominant symbol's role, not merely its technical s
 
 ```js
 // eslint.config.mjs
-import { defineConfig } from '@me-tool/eslint-prettier-ts-config';
-import { nestNaming } from '@me-tool/eslint-prettier-ts-config/nest-naming';
+import { defineConfig } from '@cognirail/eslint-config';
+import { nestNaming } from '@cognirail/eslint-config/nest-naming';
 
 export default [
   ...defineConfig({ tsconfigRootDir: import.meta.dirname }),
@@ -293,7 +293,7 @@ Test suffixes:
 ## Options
 
 ```js
-import { defineConfig } from '@me-tool/eslint-prettier-ts-config';
+import { defineConfig } from '@cognirail/eslint-config';
 
 export default defineConfig({
   // Path to tsconfig.json directory (default: process.cwd())
@@ -433,6 +433,25 @@ Targets modern Node.js runtimes (`^20.19.0 || ^22.13.0 || >=24`) with `ecmaVersi
 
 Recommended extensions: [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint), [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode), [Error Lens](https://marketplace.visualstudio.com/items?itemName=usernamehw.errorlens).
 
+## Migration from `@me-tool`
+
+`@cognirail/eslint-config` is the new package name for `@me-tool/eslint-prettier-ts-config`.
+
+```bash
+pnpm remove @me-tool/eslint-prettier-ts-config
+pnpm add -D @cognirail/eslint-config
+```
+
+Then replace imports and Prettier references:
+
+```diff
+- import { defineConfig } from '@me-tool/eslint-prettier-ts-config';
++ import { defineConfig } from '@cognirail/eslint-config';
+
+- "prettier": "@me-tool/eslint-prettier-ts-config/prettier"
++ "prettier": "@cognirail/eslint-config/prettier"
+```
+
 ## Migration from v1
 
 v2 is a breaking change:
@@ -440,7 +459,7 @@ v2 is a breaking change:
 1. **Update the package**
 
    ```bash
-   pnpm add -D @me-tool/eslint-prettier-ts-config@2 eslint@latest
+   pnpm add -D @cognirail/eslint-config@2 eslint@latest
    pnpm remove @me-tool/eslint-prettier-config  # remove old base
    ```
 
@@ -450,7 +469,7 @@ v2 is a breaking change:
 
    ```diff
    - "prettier": "@me-tool/eslint-prettier-ts-config/.prettierrc.js"
-   + "prettier": "@me-tool/eslint-prettier-ts-config/prettier"
+   + "prettier": "@cognirail/eslint-config/prettier"
    ```
 
 4. **Update lint-staged**: Remove `git add` from commands (auto-staged since lint-staged v10).

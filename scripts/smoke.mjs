@@ -6,7 +6,7 @@ import { ESLint } from 'eslint';
 import { defineAgentConfig } from '../src/agent.mjs';
 import { defineConfig } from '../src/index.mjs';
 
-const root = await mkdtemp(path.join(tmpdir(), 'eslint-prettier-ts-config-smoke-'));
+const root = await mkdtemp(path.join(tmpdir(), 'cognirail-eslint-config-smoke-'));
 
 try {
   await mkdir(path.join(root, 'src', 'agent', 'runtime'), { recursive: true });

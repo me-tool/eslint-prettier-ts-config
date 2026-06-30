@@ -1,5 +1,5 @@
 {
-  "name": "@me-tool/eslint-prettier-ts-config",
+  "name": "@cognirail/eslint-config",
   "version": "2.1.3",
   "description": "Opinionated ESLint flat config + Prettier for TypeScript — AI coding guardrails",
   "type": "module",
@@ -58,13 +58,13 @@
   },
   "author": "halo xie",
   "license": "ISC",
-  "homepage": "https://github.com/me-tool/eslint-prettier-ts-config#readme",
+  "homepage": "https://github.com/cognirail/eslint-config#readme",
   "bugs": {
-    "url": "https://github.com/me-tool/eslint-prettier-ts-config/issues"
+    "url": "https://github.com/cognirail/eslint-config/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/me-tool/eslint-prettier-ts-config.git"
+    "url": "git+https://github.com/cognirail/eslint-config.git"
   },
   "publishConfig": {
     "access": "public",
