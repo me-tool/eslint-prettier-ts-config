@@ -1,6 +1,6 @@
 # @me-tool/eslint-prettier-ts-config
 
-Opinionated ESLint v9 flat config + Prettier for TypeScript projects.
+Opinionated ESLint flat config + Prettier for TypeScript projects.
 
 Designed as **AI coding guardrails** — strict type checks, complexity detection, modern JS enforcement, and no inline escape hatches. One package, zero config hassle.
 
@@ -92,7 +92,7 @@ Alternatively, create a `cspell.json` at project root — CSpell auto-discovers 
 
 ### 6. (Optional) Barrel Import Enforcement
 
-Enforce barrel imports at layer boundaries — prevent deep path imports like `@core/modules/redis/redis.module` and force consumers to use `@core/modules`.
+Enforce barrel imports at architecture boundaries — prevent deep path imports like `@agent/runtime/internal/executor` and force consumers to use `@agent/runtime`.
 
 ```js
 // eslint.config.mjs
@@ -102,25 +102,85 @@ import { barrel } from '@me-tool/eslint-prettier-ts-config/barrel';
 export default [
   ...defineConfig({ tsconfigRootDir: import.meta.dirname }),
   ...barrel({
-    layers: [
-      { alias: '@core/modules' },
-      { alias: '@core/utils' },
-      { alias: '@shared', message: 'Import from @shared barrel only' },
+    boundaries: [
+      {
+        publicAlias: '@agent/runtime',
+        internalGlobs: ['src/agent/runtime/**'],
+        consumers: ['src/agent/**', 'src/tools/**', 'test/**'],
+      },
     ],
-    enforcedIn: ['src/features/**/*.ts', 'src/modules/**/*.ts', 'test/**/*.ts'],
   }),
 ];
 ```
 
-| Option             | Type       | Description                                                                                                |
-| ------------------ | ---------- | ---------------------------------------------------------------------------------------------------------- |
-| `layers[].alias`   | `string`   | Path alias to restrict. Blocks `${alias}/*/**` (deep imports).                                             |
-| `layers[].message` | `string?`  | Custom error message. Defaults to `Use barrel: ${alias}`.                                                  |
-| `enforcedIn`       | `string[]` | Globs for files where the rule applies. Typically the consuming layers, not the layer defining the barrel. |
+| Option                              | Type       | Description                                                                                  |
+| ----------------------------------- | ---------- | -------------------------------------------------------------------------------------------- |
+| `boundaries[].publicAlias`          | `string`   | Public alias to import from. Blocks imports below this alias.                                |
+| `boundaries[].internalGlobs`        | `string[]` | Files inside the implementation boundary; ignored so internals can import each other.        |
+| `boundaries[].consumers`            | `string[]` | Files where deep imports from the public alias are forbidden.                                |
+| `boundaries[].allowInternalFrom`    | `string[]` | Additional globs allowed to import internals.                                                |
+| `boundaries[].ignores`              | `string[]` | Extra ignores for this boundary.                                                             |
+| `layers` / `enforcedIn` / `ignores` | —          | Legacy API kept for existing configs; prefer `boundaries` for new architecture declarations. |
 
-The rule only applies to files matching `enforcedIn` — internal imports within the same layer are not restricted.
+The rule only applies to boundary `consumers`; files matching `internalGlobs`, `allowInternalFrom`, or `ignores` are not restricted.
 
-### 7. (Optional) NestJS File Naming
+### 7. (Optional) Agent Project Preset
+
+Use `./agent` when the project contains agent runtime/tool/prompt/eval code and should enforce role-based file naming. This is the core agent preset; spell checking remains opt-in through `./cspell`.
+
+```js
+// eslint.config.mjs
+import { defineAgentConfig } from '@me-tool/eslint-prettier-ts-config/agent';
+
+export default defineAgentConfig({
+  tsconfigRootDir: import.meta.dirname,
+  boundaries: [
+    {
+      publicAlias: '@agent/runtime',
+      internalGlobs: ['src/agent/runtime/**'],
+      consumers: ['src/agent/**', 'src/tools/**', 'test/**'],
+    },
+  ],
+});
+```
+
+Default agent role suffixes:
+
+| Suffix      | Expected shape       |
+| ----------- | -------------------- |
+| `runtime`   | any                  |
+| `executor`  | class or function    |
+| `planner`   | class or function    |
+| `tool`      | schema or function   |
+| `prompt`    | text or factory      |
+| `eval`      | any                  |
+| `adapter`   | class or function    |
+| `schema`    | any                  |
+| `memory`    | class or function    |
+| `type`      | interface/type alias |
+| `interface` | interface/type alias |
+
+### 8. (Optional) Role-Based File Naming
+
+Use `./role-naming` directly for non-Nest, non-agent projects with their own role suffix table.
+
+```js
+import { defineConfig } from '@me-tool/eslint-prettier-ts-config';
+import { roleNaming } from '@me-tool/eslint-prettier-ts-config/role-naming';
+
+export default [
+  ...defineConfig({ tsconfigRootDir: import.meta.dirname }),
+  ...roleNaming({
+    suffixes: {
+      service: { kind: 'class-or-function' },
+      schema: { kind: 'any' },
+      type: { kind: 'types' },
+    },
+  }),
+];
+```
+
+### 9. (Optional) NestJS File Naming
 
 Enforce the NestJS file-naming convention: role-suffix whitelist, content↔suffix binding, ambient declaration placement, and a single test-file convention. Self-contained — adds **no** external ESLint plugin dependency.
 

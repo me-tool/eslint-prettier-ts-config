@@ -1,7 +1,7 @@
 {
   "name": "@me-tool/eslint-prettier-ts-config",
   "version": "2.1.2",
-  "description": "Opinionated ESLint v9 flat config + Prettier for TypeScript — AI coding guardrails",
+  "description": "Opinionated ESLint flat config + Prettier for TypeScript — AI coding guardrails",
   "type": "module",
   "exports": {
     ".": {
@@ -19,10 +19,20 @@
       "import": "./src/configs/barrel.mjs",
       "default": "./src/configs/barrel.mjs"
     },
+    "./role-naming": {
+      "types": "./src/configs/role-naming.d.mts",
+      "import": "./src/configs/role-naming.mjs",
+      "default": "./src/configs/role-naming.mjs"
+    },
     "./nest-naming": {
       "types": "./src/configs/nest-naming.d.mts",
       "import": "./src/configs/nest-naming.mjs",
       "default": "./src/configs/nest-naming.mjs"
+    },
+    "./agent": {
+      "types": "./src/agent.d.mts",
+      "import": "./src/agent.mjs",
+      "default": "./src/agent.mjs"
     },
     "./prettier": {
       "import": {
@@ -36,8 +46,13 @@
     }
   },
   "files": [
+    "scripts/",
     "src/"
   ],
+  "scripts": {
+    "smoke": "node scripts/smoke.mjs",
+    "test": "node scripts/smoke.mjs"
+  },
   "engines": {
     "node": "^20.19.0 || ^22.13.0 || >=24"
   },
@@ -64,7 +79,6 @@
     "ai-coding"
   ],
   "dependencies": {
-    "@cspell/eslint-plugin": "^10.0.1",
     "@eslint/js": "^10.0.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.5",
@@ -75,12 +89,19 @@
     "globals": "^17.6.0",
     "typescript-eslint": "^8.60.1"
   },
+  "devDependencies": {
+    "@cspell/eslint-plugin": "^10.0.1"
+  },
   "peerDependencies": {
+    "@cspell/eslint-plugin": ">=10.0.1",
     "eslint": ">=10.4.1",
     "prettier": ">=3.8.3",
     "typescript": ">=6.0.3"
   },
   "peerDependenciesMeta": {
+    "@cspell/eslint-plugin": {
+      "optional": true
+    },
     "prettier": {
       "optional": true
     },
